@@ -2,7 +2,7 @@
 
 A practical, interview-focused handbook for senior Java engineers. It concentrates on the questions that appear most often, explains what happens beneath framework annotations, and connects technical answers to production trade-offs.
 
-The handbook currently contains **198 questions and model answers** across Core Java, Spring, and databases.
+The handbook currently contains **382 questions and model answers** across Core Java, Spring, databases, microservices, and system design.
 
 ## Chapters
 
@@ -11,10 +11,10 @@ The handbook currently contains **198 questions and model answers** across Core 
 | [Core Java](01-java-core/README.md) | Object model, collections, generics, streams, concurrency, JVM, and modern Java | 72 | Available |
 | [Spring and Spring Boot](02-spring/README.md) | DI, bean lifecycle, AOP, transactions, Boot, MVC, JPA, Security, and testing | 50 | Available |
 | [Databases](03-database/README.md) | SQL, modeling, indexes, isolation, locking, optimization, replication, and scaling | 76 | Available |
-| Microservices | Service boundaries, resilience, messaging, consistency, and observability | — | Planned |
+| [Microservices](04-microservices/README.md) | Service boundaries, resilience, messaging, consistency, security, and observability | 88 | Available |
 | React | Components, hooks, state, rendering, performance, and testing | — | Planned |
 | DevOps | Containers, Kubernetes, CI/CD, cloud infrastructure, and operations | — | Planned |
-| System Design | Requirements, capacity, APIs, data, architecture, and trade-offs | — | Planned |
+| [System Design](07-system-design/README.md) | Requirements, estimation, APIs, data, architecture, reliability, and worked scenarios | 96 | Available |
 | Behavioral | Leadership, ownership, conflict, delivery, and STAR stories | — | Planned |
 
 ## What makes this handbook different?
@@ -57,8 +57,9 @@ For example, do not stop at “`@Transactional` starts a transaction.” Explain
 1. **Core Java** — language contracts, collections, concurrency, and JVM fundamentals.
 2. **Spring** — dependency injection, proxies, transactions, web applications, and production behavior.
 3. **Databases** — SQL execution, indexes, isolation, locking, and scaling.
-4. **Microservices and system design** — distributed trade-offs built on the earlier foundations.
-5. **DevOps and behavioral preparation** — delivery, operations, and leadership evidence.
+4. **Microservices** — service boundaries, distributed consistency, resilience, and messaging.
+5. **System Design** — apply the foundations through estimations, architecture trade-offs, and worked scenarios.
+6. **DevOps and behavioral preparation** — delivery, operations, and leadership evidence.
 
 ## Interview principles
 
@@ -102,4 +103,4 @@ Contributions are welcome. Keep additions interview-focused, technically precise
 
 ## Project status
 
-This handbook is under active development. Core Java, Spring, and Database chapters are available; the remaining chapters and supporting revision materials are planned.
+This handbook is under active development. Core Java, Spring, Database, Microservices, and System Design chapters are available. React, DevOps, Behavioral, and supporting revision materials are planned.
