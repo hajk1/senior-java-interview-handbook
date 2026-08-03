@@ -6,7 +6,7 @@ This roadmap tracks the handbook from its current interview-question chapters to
 
 | Area | Status | Current scope | Next improvement |
 |---|---|---|---|
-| Core Java | Complete | 72 questions | Add focused coding exercises and diagrams |
+| Core Java | Complete | 75 questions | Add focused coding exercises and diagrams |
 | Spring and Spring Boot | Complete | 50 questions | Add configuration and debugging exercises |
 | Databases | Complete | 76 questions | Add SQL exercises and execution-plan examples |
 | Microservices | Next | Empty scaffold | Build the interview chapter |

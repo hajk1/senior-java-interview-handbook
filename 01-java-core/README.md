@@ -210,19 +210,46 @@ Arrays, unlike generics, are covariant and reified. Therefore `Object[] values =
 
 `LinkedList` has linear indexed access and allocates a node per element. Insertion is constant-time only after the node position is already known. In real applications, `ArrayList` usually wins even for many workloads casually described as insertion-heavy. Use a purpose-built deque such as `ArrayDeque` for stack or queue behavior.
 
-### 21. How does `HashMap` work?
+### 21. What happens internally when an `ArrayList`'s backing array fills up?
 
-`HashMap` spreads the key's hash to select a table bucket. It compares the hash and then `equals()` to find the key. Collisions share a bucket; sufficiently large collision chains may become balanced trees when capacity and threshold conditions are met.
+`ArrayList` stores elements in a plain `Object[]`. When an add would exceed the array's length, it allocates a new array—by default about 1.5× the old capacity (`oldCapacity + oldCapacity >> 1`)—copies existing references across with `Arrays.copyOf`, and replaces the backing array; the old array becomes garbage.
 
-Average lookup is constant-time with a good hash distribution, but it is not a concurrency guarantee or a strict worst-case promise. One null key and multiple null values are supported. Capacity grows when size exceeds `capacity × loadFactor`, requiring redistribution.
+```java
+int newCapacity = oldCapacity + (oldCapacity >> 1);
+elementData = Arrays.copyOf(elementData, newCapacity);
+```
 
-### 22. How does `ConcurrentHashMap` differ from `HashMap`?
+This makes `add` amortized O(1): most calls just store into a free slot, and the occasional O(n) copy is spread over enough cheap calls to average out. It also means capacity never shrinks on its own—call `trimToSize()` if a large list's memory footprint matters after bulk removals—and that growth is a full copy, not element-by-element relocation.
+
+### 22. How are `LinkedList` nodes laid out, and how does that support O(1) removal given a node reference?
+
+`LinkedList` is a doubly linked list of private `Node<E>` objects, each holding the element (`item`) plus references to the `prev` and `next` nodes; the list itself keeps `first` and `last` pointers. Nodes are separate heap allocations scattered wherever the allocator places them—there is no contiguity or cache locality benefit like an array offers.
+
+Given a node, unlinking it is O(1): splice its neighbors' `next`/`prev` pointers around it and null out the removed node's references so it doesn't retain the rest of the list. The catch is reaching that node—`get(index)` or `remove(Object)` must first walk the list from whichever end is closer, which is O(n). The O(1) removal guarantee only materializes through APIs that already hold a node-adjacent position, such as `Deque`'s `removeFirst`/`removeLast`, or `ListIterator.remove()` after `next()`/`previous()`.
+
+### 23. How does `ArrayDeque` store elements internally, and how does it grow?
+
+`ArrayDeque` stores elements in a single circular `Object[]`, tracked with `head` and `tail` indices. `head` points at the first element and `tail` points at the next free slot after the last element; adding at either end writes into the slot and advances the corresponding index modulo the array length (implemented with a bitmask because the backing array is always kept at a power-of-two size). When an index would run past the end of the array, it wraps to `0` instead of growing—wraparound is normal, not an overflow condition.
+
+The array only grows when `head` and `tail` are about to collide with the deque full: a new array of double the capacity is allocated, and the elements are copied out in logical order starting at index `0` (unwrapping the circle), rather than doubling in place. That re-linearization is why growth is O(n), same shape as `ArrayList`'s, even though steady-state push/pop at either end is O(1) with no shifting.
+
+### 24. How does `HashMap` work internally, including resizing and treeification?
+
+`HashMap` spreads (XORs the upper and lower bits of) the key's hash to select a bucket index in a power-of-two-sized table, using a bitmask (`hash & (capacity - 1)`) instead of a modulo. It compares the spread hash and then `equals()` to find the key within that bucket's chain.
+
+When `size` exceeds `capacity × loadFactor` (default 0.75), the table doubles. Because capacity is always a power of two, resizing is a cheap split rather than a full rehash: for each old bucket, every entry's hash either keeps the same index or moves to `oldIndex + oldCapacity` in the new table, decided by a single extra bit—so entries are relinked into one of two buckets, not rehashed individually against a new modulus.
+
+A single bucket that accumulates enough collisions (`TREEIFY_THRESHOLD`, 8 entries) is converted from a linked list of nodes into a **red-black tree** (`TreeNode`, itself a subclass of the linked-list node)—but only if the table has also reached at least 64 buckets; below that size `HashMap` prefers to resize instead of treeifying a single crowded bucket. Treeification bounds worst-case lookup in a bucket to O(log n) instead of O(n) under pathological hash collisions; it converts back to a plain list if the bucket shrinks to 6 entries during a split or removal. This is specific to `HashMap`/`HashSet`—`LinkedList` never treeifies; it is a plain doubly linked list regardless of size.
+
+Average lookup is constant-time with a good hash distribution, but it is not a concurrency guarantee or a strict worst-case promise. One null key and multiple null values are supported.
+
+### 25. How does `ConcurrentHashMap` differ from `HashMap`?
 
 `ConcurrentHashMap` supports thread-safe concurrent access without one global lock for all ordinary operations. Reads are generally non-blocking, while updates coordinate at finer granularity. It rejects null keys and values so `null` cannot ambiguously mean “absent” during concurrent operations.
 
 Compound actions must use atomic methods such as `compute`, `merge`, `putIfAbsent`, or `replace`; `if (!map.containsKey(k)) map.put(k, v)` is still a race. Mapping functions should be short and should avoid recursive updates or blocking work.
 
-### 23. `HashMap`, `LinkedHashMap`, and `TreeMap`?
+### 26. `HashMap`, `LinkedHashMap`, and `TreeMap`?
 
 | Map | Ordering | Typical operation cost | Best use |
 |---|---|---:|---|
@@ -232,29 +259,29 @@ Compound actions must use atomic methods such as `compute`, `merge`, `putIfAbsen
 
 A comparator used by a sorted map should normally be consistent with `equals`; otherwise the map's idea of duplicate keys may surprise callers.
 
-### 24. `Comparable` versus `Comparator`?
+### 27. `Comparable` versus `Comparator`?
 
 `Comparable<T>` defines the type's natural ordering through `compareTo`. `Comparator<T>` defines an external, reusable ordering and supports multiple orderings for the same type.
 
 Never subtract integers to implement comparison because overflow can reverse the result. Use `Integer.compare`, `Comparator.comparing`, and then-comparators. A comparator must be antisymmetric and transitive, and should return zero precisely when values are equivalent for the sorted collection's purpose.
 
-### 25. How do fail-fast iterators work?
+### 28. How do fail-fast iterators work?
 
 Many ordinary collections track structural modification and an iterator checks an expected modification count. Unexpected modification can cause `ConcurrentModificationException`.
 
 This is a best-effort bug detector, not a thread-safety mechanism or guaranteed behavior. Use the iterator's own `remove`, a bulk operation such as `removeIf`, or an appropriate concurrent collection. Weakly consistent concurrent iterators may reflect some updates without throwing.
 
-### 26. Immutable collection versus unmodifiable view?
+### 29. Immutable collection versus unmodifiable view?
 
 `Collections.unmodifiableList(source)` returns a read-only view; changes through another reference to `source` remain visible. `List.copyOf(source)` creates an unmodifiable snapshot of the element references and rejects null elements.
 
 Neither approach deep-copies mutable elements. Also distinguish a fixed-size list such as `Arrays.asList`, which permits `set` but not structural addition or removal.
 
-### 27. When should `CopyOnWriteArrayList` be used?
+### 30. When should `CopyOnWriteArrayList` be used?
 
 It is useful when reads and iteration vastly outnumber writes and snapshots are desirable, such as a small listener registry. Every mutation copies the backing array, making frequent writes or large lists expensive. Its iterator observes a stable snapshot and does not reflect later changes.
 
-### 28. What should you know about `Optional`?
+### 31. What should you know about `Optional`?
 
 `Optional` models a possibly absent return value. It is not intended as a universal replacement for `null`, and is usually inappropriate for entity fields, DTO fields, method parameters, or collections of optionals.
 
@@ -264,13 +291,13 @@ Use `orElseGet` when the fallback is expensive because `orElse` evaluates its ar
 
 ## 4. Exceptions and resource management
 
-### 29. Checked versus unchecked exceptions?
+### 32. Checked versus unchecked exceptions?
 
 Checked exceptions must be caught or declared. Unchecked exceptions extend `RuntimeException`; compiler handling is not required.
 
 Use checked exceptions when callers can reasonably and immediately recover as part of the contract. Use unchecked exceptions for programming errors, violated invariants, or failures that most layers cannot meaningfully handle. The key is a stable abstraction: do not leak low-level SQL or transport exceptions through a domain API.
 
-### 30. How should exceptions be handled and translated?
+### 33. How should exceptions be handled and translated?
 
 Catch an exception only when you can recover, add meaningful context, translate it at an abstraction boundary, or perform cleanup that cannot use structured resource management. Preserve the cause when translating:
 
@@ -280,7 +307,7 @@ throw new OrderLoadException("Cannot load order " + orderId, cause);
 
 Do not log and rethrow the same failure at every layer; that creates duplicate noise. Do not catch `Exception` merely to continue with corrupted or unknown state.
 
-### 31. How does try-with-resources work?
+### 34. How does try-with-resources work?
 
 Resources implementing `AutoCloseable` are closed in reverse declaration order, even when the body fails. If both the body and `close()` throw, the body exception remains primary and close failures are attached as suppressed exceptions.
 
@@ -293,7 +320,7 @@ try (var input = Files.newInputStream(path);
 
 Inspect `getSuppressed()` when cleanup failures matter. Avoid returning resources tied to an already-closed owner.
 
-### 32. Does `finally` always execute?
+### 35. Does `finally` always execute?
 
 Normally it runs when control leaves `try` or `catch`, including through `return` or an exception. It may not run if the process or JVM terminates abruptly, the machine fails, or execution never leaves the block.
 
@@ -303,25 +330,25 @@ A `return` or thrown exception inside `finally` can replace the original result 
 
 ## 5. Functional Java and streams
 
-### 33. What is a functional interface?
+### 36. What is a functional interface?
 
 A functional interface has one abstract method and can be the target of a lambda or method reference. Default, static, private, and compatible `Object` methods do not count toward that single abstract method.
 
 `@FunctionalInterface` is optional but lets the compiler protect the design. Common types include `Function`, `Predicate`, `Consumer`, `Supplier`, and their primitive specializations, which avoid boxing.
 
-### 34. Lambda versus anonymous class?
+### 37. Lambda versus anonymous class?
 
 A lambda does not introduce a new `this`; `this` refers to the enclosing instance. An anonymous class creates its own `this` and class scope. Lambda implementation details are deliberately unspecified and should not be treated as ordinary anonymous-class instances.
 
 Captured local variables must be final or effectively final. The restriction avoids mutable local-variable capture semantics after the stack frame returns; mutable object state referenced by such a variable can still change.
 
-### 35. How are streams evaluated?
+### 38. How are streams evaluated?
 
 A stream pipeline has a source, lazy intermediate operations, and a terminal operation. Traversal begins only when the terminal operation requests values. Stateless operations can be fused, and short-circuiting operations may avoid processing the entire source.
 
 A stream is single-use and does not store data. Avoid side effects in pipeline functions; they make ordering, parallelism, testing, and reasoning difficult.
 
-### 36. `map` versus `flatMap`?
+### 39. `map` versus `flatMap`?
 
 `map` transforms each element into one result. `flatMap` transforms each element into a nested stream-like result and flattens one level.
 
@@ -333,13 +360,13 @@ List<String> lines = files.stream()
 
 The same concept appears with `Optional.flatMap` and `CompletableFuture.thenCompose`: use it when the mapping function already returns the container type and nesting is unwanted.
 
-### 37. `reduce` versus `collect`?
+### 40. `reduce` versus `collect`?
 
 `reduce` combines values into an immutable-style result, such as a sum. `collect` performs mutable reduction into a container, such as a list, map, or grouped result.
 
 For parallel correctness, the identity must be neutral and the accumulator/combiner must obey the required associativity and compatibility rules. Do not mutate and return the same collection from `reduce`; use `collect`.
 
-### 38. What are common stream mistakes?
+### 41. What are common stream mistakes?
 
 - Reusing a consumed stream.
 - Mutating external state in `map`, `filter`, or `forEach`.
@@ -350,7 +377,7 @@ For parallel correctness, the identity must be neutral and the accumulator/combi
 - Using streams for complex branching where a loop is clearer.
 - Running blocking work in a parallel stream.
 
-### 39. When should parallel streams be used?
+### 42. When should parallel streams be used?
 
 Only after measurement, for sufficiently large, splittable, CPU-bound work with independent operations and an associative reduction. Parallel streams normally use the common fork-join pool, a process-wide resource also used by other facilities.
 
@@ -360,7 +387,7 @@ They are a poor default for blocking I/O, small collections, ordered operations,
 
 ## 6. Concurrency
 
-### 40. What are race conditions, visibility, and atomicity?
+### 43. What are race conditions, visibility, and atomicity?
 
 - A race condition means correctness depends on uncontrolled timing.
 - Visibility means one thread can observe another thread's writes.
@@ -368,25 +395,25 @@ They are a poor default for blocking I/O, small collections, ordered operations,
 
 `count++` is a read-modify-write sequence and is not atomic. Thread safety requires protecting the entire invariant, not merely making individual fields visible.
 
-### 41. What does `synchronized` guarantee?
+### 44. What does `synchronized` guarantee?
 
 It provides mutual exclusion for code locking the same monitor and establishes happens-before relationships: an unlock happens-before a later lock of that monitor. This provides both atomicity for the critical section and visibility across it.
 
 Instance synchronized methods lock `this`; static synchronized methods lock the `Class` object. Keep critical sections small, avoid blocking network calls while holding a lock, and use a consistent lock order to prevent deadlock.
 
-### 42. What does `volatile` guarantee?
+### 45. What does `volatile` guarantee?
 
 A write to a volatile variable happens-before a later read of that variable, providing visibility and ordering constraints. Individual volatile reads and writes are atomic, including `long` and `double`, but compound operations such as `count++` are not.
 
 `volatile` works well for an independent state flag or safely publishing an immutable object. It cannot protect an invariant spanning multiple variables. Use locking or an appropriate atomic abstraction for compound state transitions.
 
-### 43. Explain the Java Memory Model and happens-before.
+### 46. Explain the Java Memory Model and happens-before.
 
 The Java Memory Model defines which writes one thread is guaranteed to observe and which reorderings are legal. In the absence of a happens-before relationship, a data race can produce stale or surprising observations even if the code appears ordered in each thread.
 
 Important happens-before edges include monitor unlock-to-lock, volatile write-to-read, actions before `Thread.start()` to the new thread, and all actions in a thread to another thread successfully returning from `join()`.
 
-### 44. `synchronized` versus `ReentrantLock`?
+### 47. `synchronized` versus `ReentrantLock`?
 
 Both provide mutual exclusion and visibility. `ReentrantLock` additionally offers interruptible lock acquisition, timed `tryLock`, optional fairness, multiple `Condition`s, and explicit lock management.
 
@@ -401,13 +428,13 @@ try {
 
 Prefer `synchronized` when its structured simplicity is enough. Use explicit locks for a specific capability, not because they are assumed to be universally faster.
 
-### 45. Atomic variables versus `LongAdder`?
+### 48. Atomic variables versus `LongAdder`?
 
 `AtomicInteger` and `AtomicLong` use atomic compare-and-set style operations and are appropriate when updates and exact reads must form one linearizable value. Compound multi-variable invariants still need broader coordination.
 
 `LongAdder` spreads updates across cells to reduce contention and is excellent for high-update statistics. `sum()` is not an atomic snapshot relative to concurrent updates, so it is inappropriate for identifiers or exact coordination.
 
-### 46. How should a thread pool be sized and configured?
+### 49. How should a thread pool be sized and configured?
 
 There is no universal number. CPU-bound work often starts near the available processor count. I/O-bound work can use more threads according to wait time, service limits, memory, and measured throughput.
 
@@ -422,13 +449,13 @@ Always consider:
 
 An unbounded queue can convert overload into high latency and memory exhaustion.
 
-### 47. `Runnable`, `Callable`, `Future`, and `CompletableFuture`?
+### 50. `Runnable`, `Callable`, `Future`, and `CompletableFuture`?
 
 `Runnable` returns no result and cannot declare checked exceptions. `Callable<T>` returns a value and may throw. `Future<T>` represents a submitted result but offers limited composition. `CompletableFuture<T>` supports non-blocking completion stages and composition.
 
 Use `thenCompose` for an asynchronous function that already returns a future; `thenApply` would create a nested future. Know which executor executes each stage. Non-`Async` continuations may run in the thread that completes the previous stage; `*Async` methods without an executor typically use the common pool.
 
-### 48. How do interruption and cancellation work?
+### 51. How do interruption and cancellation work?
 
 Interruption is a cooperative request, not forced thread termination. Blocking methods may throw `InterruptedException` and clear the status. Code that cannot handle it should usually restore the status and exit or propagate:
 
@@ -441,13 +468,13 @@ catch (InterruptedException e) {
 
 `Future.cancel(true)` requests interruption if the task is running; it cannot guarantee that a task ignoring interruption will stop. Never swallow interruption silently.
 
-### 49. What causes deadlock, and how do you prevent it?
+### 52. What causes deadlock, and how do you prevent it?
 
 Deadlock typically requires mutual exclusion, hold-and-wait, no forced preemption, and circular wait. Prevent it by imposing a global lock order, avoiding nested locks, keeping locked sections small, using timed acquisition where appropriate, and avoiding unknown external code while holding locks.
 
 Diagnose with thread dumps: look for threads waiting on locks held in a cycle. Random delays may hide the issue but do not fix it.
 
-### 50. `CountDownLatch`, `CyclicBarrier`, `Semaphore`, and `Phaser`?
+### 53. `CountDownLatch`, `CyclicBarrier`, `Semaphore`, and `Phaser`?
 
 | Utility | Purpose |
 |---|---|
@@ -458,13 +485,13 @@ Diagnose with thread dumps: look for threads waiting on locks held in a cycle. R
 
 Use higher-level concurrency utilities before hand-writing wait/notify protocols. A semaphore bounds concurrency; it does not itself guarantee fairness or protect a complex invariant.
 
-### 51. How does `ConcurrentHashMap.computeIfAbsent` help, and what are its traps?
+### 54. How does `ConcurrentHashMap.computeIfAbsent` help, and what are its traps?
 
 It atomically computes and installs a value when a key is absent, avoiding a check-then-act race. The mapping function should be short, side-effect-aware, and must not recursively update the same map in a way that violates its contract.
 
 It can be useful for memoization, but unbounded keys create an unbounded cache. For production caching, consider eviction, expiry, failure behavior, and stampede handling.
 
-### 52. Platform threads versus virtual threads?
+### 55. Platform threads versus virtual threads?
 
 Platform threads are typically mapped to operating-system threads and are relatively expensive in large numbers. Virtual threads are lightweight JVM-managed threads designed to make thread-per-task style scale for high-concurrency blocking I/O.
 
@@ -474,7 +501,7 @@ Virtual threads improve scale, not the speed of CPU work. They do not remove dat
 
 ## 7. JVM and memory
 
-### 53. What are the main JVM runtime memory areas?
+### 56. What are the main JVM runtime memory areas?
 
 - **Heap:** objects and arrays, shared across threads and managed by GC.
 - **Java stacks:** per-thread frames containing local variables, operand stacks, and call state.
@@ -485,19 +512,19 @@ Virtual threads improve scale, not the speed of CPU work. They do not remove dat
 
 An `OutOfMemoryError` may refer to heap, metaspace, direct buffer memory, native thread creation, or another native allocation—not only “too many objects on heap.”
 
-### 54. Stack versus heap?
+### 57. Stack versus heap?
 
 Method invocation frames are placed on a thread's stack; objects are conceptually allocated on the heap. References can exist in either place. The JIT may eliminate allocations or scalar-replace objects, so the source-level model is not a guarantee of physical placement.
 
 Deep or infinite recursion can cause `StackOverflowError`. Retaining an ever-growing reachable object graph can exhaust the heap.
 
-### 55. How does garbage collection determine that an object is collectible?
+### 58. How does garbage collection determine that an object is collectible?
 
 The JVM traces from GC roots—such as live thread stacks, static references, and JNI references. Objects not reachable from those roots are eligible for collection, including isolated cycles.
 
 Eligibility does not imply immediate reclamation. A Java memory leak is usually an object that is no longer useful but remains strongly reachable through caches, listeners, static collections, queues, class loaders, or `ThreadLocal`s.
 
-### 56. Strong, soft, weak, and phantom references?
+### 59. Strong, soft, weak, and phantom references?
 
 - **Strong:** ordinary reference; keeps the object alive.
 - **Soft:** may be cleared under memory pressure; unsuitable for predictable cache policy.
@@ -506,13 +533,13 @@ Eligibility does not imply immediate reclamation. A Java memory leak is usually 
 
 Reference types do not replace explicit resource management. Close files, sockets, and native resources deterministically.
 
-### 57. What does a generational collector optimize for?
+### 60. What does a generational collector optimize for?
 
 Most objects die young. Generational collectors place newly allocated objects into a young generation and collect it frequently; survivors may be promoted. Older regions are collected less often or concurrently depending on the collector.
 
 The names and mechanics vary by collector. Senior analysis should focus on allocation rate, live-set size, pause and throughput goals, promotion, humongous objects, and evidence from GC logs rather than memorized folklore.
 
-### 58. How do you investigate an `OutOfMemoryError`?
+### 61. How do you investigate an `OutOfMemoryError`?
 
 1. Identify the exact OOME message and whether memory is heap or native.
 2. Preserve evidence: heap dump near failure, GC logs, native-memory data, container metrics, thread count, and application metrics.
@@ -522,19 +549,19 @@ The names and mechanics vary by collector. Senior analysis should focus on alloc
 
 Increasing the heap can delay a leak and lengthen collection pauses without fixing it.
 
-### 59. What are class loading and parent delegation?
+### 62. What are class loading and parent delegation?
 
 Class loaders load class bytes and define runtime classes. A class's identity is its binary name plus its defining class loader. Parent-first delegation normally asks the parent before attempting local loading, protecting platform classes and encouraging consistency.
 
 Application servers, plugin systems, and hot reload may use multiple loaders. A static field is singleton only within one loaded class identity, and class-loader leaks can retain entire application graphs.
 
-### 60. What does the JIT compiler do?
+### 63. What does the JIT compiler do?
 
 The JVM begins with interpreted or lightly compiled execution, profiles hot code, and compiles frequently executed paths with optimizations such as inlining, escape analysis, lock elimination, and speculative optimization. Invalidated assumptions can cause deoptimization.
 
 This makes naive microbenchmarks misleading. Use JMH, allow warmup, consume results, isolate setup, consider constant folding and dead-code elimination, and measure the actual production objective.
 
-### 61. What is safe publication?
+### 64. What is safe publication?
 
 Safe publication ensures another thread sees a fully initialized object. It can be achieved through static initialization, storing into a volatile field, publishing under the same lock used by readers, thread-safe collections, or correctly constructed objects with final-field guarantees.
 
@@ -544,7 +571,7 @@ Letting `this` escape from a constructor—such as registering a listener before
 
 ## 8. Modern Java
 
-### 62. What are records, and are they immutable?
+### 65. What are records, and are they immutable?
 
 A record is a concise nominal data carrier with final component fields, accessors, a canonical constructor, and generated `equals`, `hashCode`, and `toString`. Records are implicitly final and can implement interfaces.
 
@@ -559,13 +586,13 @@ record Order(String id, List<String> items) {
 }
 ```
 
-### 63. What are sealed classes?
+### 66. What are sealed classes?
 
 A sealed class or interface restricts direct permitted subtypes. Each permitted subtype must be `final`, `sealed`, or `non-sealed`. This is useful for closed domain alternatives and enables exhaustive pattern matching.
 
 Use sealing when the set of variants is intentionally controlled. Do not seal an extension API that third parties are expected to implement freely.
 
-### 64. What does pattern matching improve?
+### 67. What does pattern matching improve?
 
 Pattern matching combines a type test with safe extraction, reducing casts and making algebraic-style domain handling clearer. Java supports patterns for `instanceof`, record patterns, and pattern matching in `switch` in modern releases.
 
@@ -580,13 +607,13 @@ static BigDecimal total(Payment payment) {
 
 With a sealed hierarchy, the compiler can check exhaustiveness. Keep domain behavior on objects when polymorphism is the better design; pattern matching is especially useful when operations vary independently of a closed data hierarchy.
 
-### 65. What are modules, and why are they different from packages?
+### 68. What are modules, and why are they different from packages?
 
 The Java Platform Module System groups packages into named modules with explicit dependencies and exported packages. A package controls source-level names and access; a module controls readability and strong encapsulation across package boundaries.
 
 `requires` declares dependencies, `exports` exposes API packages, `opens` permits deep reflection, and `uses`/`provides` support services. The unnamed module preserves classpath compatibility. Framework migrations can require targeted `opens`, but broadly opening everything loses encapsulation benefits.
 
-### 66. What is `var`?
+### 69. What is `var`?
 
 `var` requests local-variable type inference; Java remains statically typed and the compiler fixes the type from the initializer. It is limited to local contexts and does not make Java dynamically typed.
 
@@ -596,19 +623,19 @@ Use it when the type is obvious or repeated and the variable name communicates i
 
 ## 9. Design and production scenarios
 
-### 67. How would you design a thread-safe in-memory cache?
+### 70. How would you design a thread-safe in-memory cache?
 
 Start by defining semantics: maximum size, expiry, eviction, concurrent loading, failure caching, null handling, consistency, and metrics. `ConcurrentHashMap` alone provides thread-safe storage but not bounded memory or complete cache policy.
 
 Avoid a cache stampede by coordinating one load per key, but ensure failed or cancelled loads do not poison the entry forever. In production, prefer a proven cache library unless the requirement is deliberately minimal.
 
-### 68. How do you avoid resource leaks in Java services?
+### 71. How do you avoid resource leaks in Java services?
 
 Use try-with-resources for deterministic lifetime, bound executors and queues, shut down owned thread pools, remove `ThreadLocal` values in pooled threads, unregister listeners, close HTTP responses/streams, and give caches eviction policies.
 
 Ownership must be explicit: the component that creates or acquires a resource should know whether it owns closing it. GC reclaims Java memory; it does not provide timely release of file descriptors, sockets, or database connections.
 
-### 69. How do you choose a collection?
+### 72. How do you choose a collection?
 
 Choose from behavior, not habit:
 
@@ -621,19 +648,19 @@ Choose from behavior, not habit:
 
 Then measure if performance matters. Big-O omits allocation, cache locality, contention, and actual distributions.
 
-### 70. How would you diagnose high CPU in a Java process?
+### 73. How would you diagnose high CPU in a Java process?
 
 Correlate process/container CPU with thread-level evidence. Take multiple thread dumps or a profile, identify repeatedly runnable hot threads and stacks, then connect them to request traces, workload, lock contention, GC activity, compilation, or a tight loop.
 
 Possible causes include inefficient algorithms, retry storms, serialization, regex backtracking, excessive allocation/GC, busy waiting, lock spinning, and too much parallelism. Optimize the measured hot path and retest; do not infer it from a single snapshot.
 
-### 71. How would you diagnose a hanging Java service?
+### 74. How would you diagnose a hanging Java service?
 
 Check whether it is deadlocked, blocked on external I/O, waiting for a depleted connection or thread pool, overloaded behind an unbounded queue, paused by GC, or unable to make scheduler progress. Gather thread dumps over time, pool metrics, dependency latency, traces, socket state, and GC logs.
 
 A service can appear idle while all request threads wait on one downstream call. Always configure deadlines and expose saturation metrics for each bounded resource.
 
-### 72. What distinguishes a senior Core Java answer?
+### 75. What distinguishes a senior Core Java answer?
 
 - States contracts precisely instead of relying on folklore.
 - Connects `equals` and immutability to collection correctness.
@@ -660,9 +687,9 @@ Before an interview, answer these without notes:
 6. How do you make a class immutable?
 7. What does type erasure prevent?
 8. Explain PECS.
-9. How does `HashMap` find a key?
+9. How does `HashMap` find a key, resize, and treeify a bucket?
 10. Why are mutable map keys dangerous?
-11. `ArrayList` versus `LinkedList`?
+11. `ArrayList` versus `LinkedList`, and how does each grow or support O(1) node removal?
 12. Unmodifiable view versus immutable snapshot?
 13. Checked versus unchecked exceptions?
 14. How are suppressed exceptions produced?
