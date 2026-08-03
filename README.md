@@ -2,7 +2,7 @@
 
 A practical, interview-focused handbook for senior Java engineers. It concentrates on the questions that appear most often, explains what happens beneath framework annotations, and connects technical answers to production trade-offs.
 
-The handbook currently contains **385 questions and model answers** across Core Java, Spring, databases, microservices, and system design.
+The handbook currently contains **458 questions and model answers** across Core Java, Spring, databases, microservices, DevOps, and system design.
 
 ## Chapters
 
@@ -13,7 +13,7 @@ The handbook currently contains **385 questions and model answers** across Core 
 | [Databases](03-database/README.md) | SQL, modeling, indexes, isolation, locking, optimization, replication, and scaling | 76 | Available |
 | [Microservices](04-microservices/README.md) | Service boundaries, resilience, messaging, consistency, security, and observability | 88 | Available |
 | React | Components, hooks, state, rendering, performance, and testing | — | Planned |
-| DevOps | Containers, Kubernetes, CI/CD, cloud infrastructure, and operations | — | Planned |
+| [DevOps](06-devops/README.md) | Containers, Kubernetes, CI/CD, cloud infrastructure, and operations | 73 | Available |
 | [System Design](07-system-design/README.md) | Requirements, estimation, APIs, data, architecture, reliability, and worked scenarios | 96 | Available |
 | Behavioral | Leadership, ownership, conflict, delivery, and STAR stories | — | Planned |
 
@@ -103,4 +103,4 @@ Contributions are welcome. Keep additions interview-focused, technically precise
 
 ## Project status
 
-This handbook is under active development. Core Java, Spring, Database, Microservices, and System Design chapters are available. React, DevOps, Behavioral, and supporting revision materials are planned.
+This handbook is under active development. Core Java, Spring, Database, Microservices, DevOps, and System Design chapters are available. React, Behavioral, and supporting revision materials are planned.

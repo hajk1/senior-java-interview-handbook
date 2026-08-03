@@ -9,9 +9,9 @@ This roadmap tracks the handbook from its current interview-question chapters to
 | Core Java | Complete | 75 questions | Add focused coding exercises and diagrams |
 | Spring and Spring Boot | Complete | 50 questions | Add configuration and debugging exercises |
 | Databases | Complete | 76 questions | Add SQL exercises and execution-plan examples |
-| Microservices | Next | Empty scaffold | Build the interview chapter |
-| System Design | Planned | Empty scaffold | Build reusable design framework and case studies |
-| DevOps | Planned | Empty scaffold | Cover containers, Kubernetes, CI/CD, and operations |
+| Microservices | Complete | 88 questions | Add worked resilience and messaging exercises |
+| System Design | Complete | 96 questions | Add more worked case studies and diagrams |
+| DevOps | Complete | 73 questions | Add worked runbook and IaC exercises |
 | React | Planned | Empty scaffold | Cover senior full-stack interview topics |
 | Behavioral | Planned | Empty scaffold | Add leadership questions and STAR preparation |
 | Revision materials | Planned | Empty scaffold | Populate checklist, quick revision, and cheat sheets |
@@ -38,87 +38,87 @@ This roadmap tracks the handbook from its current interview-question chapters to
 - [ ] Review chapter overlap and replace duplication with cross-links where useful.
 - [ ] Add a consistent difficulty marker: foundational, senior, or deep dive.
 
-## Phase 2 — Microservices
+## Phase 2 — Microservices (complete)
 
-Build `04-microservices/README.md` around the most frequent senior backend questions.
+Built `04-microservices/README.md` around the most frequent senior backend questions.
 
 ### Architecture
 
-- [ ] Monolith versus modular monolith versus microservices.
-- [ ] Service boundaries, bounded contexts, and data ownership.
-- [ ] Synchronous versus asynchronous communication.
-- [ ] API contracts, compatibility, and versioning.
-- [ ] Service discovery, gateways, and load balancing.
+- [x] Monolith versus modular monolith versus microservices.
+- [x] Service boundaries, bounded contexts, and data ownership.
+- [x] Synchronous versus asynchronous communication.
+- [x] API contracts, compatibility, and versioning.
+- [x] Service discovery, gateways, and load balancing.
 
 ### Reliability
 
-- [ ] Timeouts, retries, exponential backoff, and jitter.
-- [ ] Circuit breakers, bulkheads, rate limiting, and load shedding.
-- [ ] Idempotency, duplicate delivery, and retry safety.
-- [ ] Graceful degradation and fallback semantics.
-- [ ] Health checks, readiness, liveness, and graceful shutdown.
+- [x] Timeouts, retries, exponential backoff, and jitter.
+- [x] Circuit breakers, bulkheads, rate limiting, and load shedding.
+- [x] Idempotency, duplicate delivery, and retry safety.
+- [x] Graceful degradation and fallback semantics.
+- [x] Health checks, readiness, liveness, and graceful shutdown.
 
 ### Data and messaging
 
-- [ ] Database per service and cross-service queries.
-- [ ] Saga orchestration versus choreography.
-- [ ] Transactional outbox, change-data capture, and inbox patterns.
-- [ ] Delivery guarantees, ordering, partitioning, and consumer groups.
-- [ ] Event schema evolution and replay.
+- [x] Database per service and cross-service queries.
+- [x] Saga orchestration versus choreography.
+- [x] Transactional outbox, change-data capture, and inbox patterns.
+- [x] Delivery guarantees, ordering, partitioning, and consumer groups.
+- [x] Event schema evolution and replay.
 
 ### Operations and security
 
-- [ ] Logs, metrics, traces, correlation, and service-level objectives.
-- [ ] Authentication, authorization, service identity, and secret management.
-- [ ] Deployment compatibility and safe rollouts.
-- [ ] Incident scenarios: retry storms, cascading failure, and partial outage.
+- [x] Logs, metrics, traces, correlation, and service-level objectives.
+- [x] Authentication, authorization, service identity, and secret management.
+- [x] Deployment compatibility and safe rollouts.
+- [x] Incident scenarios: retry storms, cascading failure, and partial outage.
 
-## Phase 3 — System design
+## Phase 3 — System design (complete)
 
-Build `07-system-design/README.md` as both an interview method and a collection of worked designs.
+Built `07-system-design/README.md` as both an interview method and a collection of worked designs.
 
 ### Interview framework
 
-- [ ] Clarify functional and non-functional requirements.
-- [ ] Estimate traffic, storage, bandwidth, and growth.
-- [ ] Define APIs, data model, and consistency requirements.
-- [ ] Draw the high-level architecture and critical request flows.
-- [ ] Identify bottlenecks, failure modes, security boundaries, and trade-offs.
-- [ ] Explain scaling evolution rather than jumping to maximum complexity.
+- [x] Clarify functional and non-functional requirements.
+- [x] Estimate traffic, storage, bandwidth, and growth.
+- [x] Define APIs, data model, and consistency requirements.
+- [x] Draw the high-level architecture and critical request flows.
+- [x] Identify bottlenecks, failure modes, security boundaries, and trade-offs.
+- [x] Explain scaling evolution rather than jumping to maximum complexity.
 
 ### Core concepts
 
-- [ ] Caching, invalidation, eviction, and stampede prevention.
-- [ ] Partitioning, replication, quorum, and consistency.
-- [ ] Queues, streams, backpressure, and asynchronous workflows.
-- [ ] Unique ID generation, distributed locks, and leader election.
-- [ ] Rate limiting, API gateways, CDNs, and search systems.
-- [ ] Multi-region design, disaster recovery, RPO, and RTO.
+- [x] Caching, invalidation, eviction, and stampede prevention.
+- [x] Partitioning, replication, quorum, and consistency.
+- [x] Queues, streams, backpressure, and asynchronous workflows.
+- [x] Unique ID generation, distributed locks, and leader election.
+- [x] Rate limiting, API gateways, CDNs, and search systems.
+- [x] Multi-region design, disaster recovery, RPO, and RTO.
 
 ### Worked case studies
 
-- [ ] URL shortener.
-- [ ] Notification service.
-- [ ] Payment or order-processing system.
-- [ ] Distributed job scheduler.
-- [ ] Real-time chat or activity feed.
-- [ ] File-storage and sharing service.
-- [ ] Metrics and logging platform.
+- [x] URL shortener.
+- [x] Notification service.
+- [x] Payment or order-processing system.
+- [x] Distributed job scheduler.
+- [x] Real-time chat or activity feed.
+- [x] File-storage and sharing service.
+- [x] Metrics and logging platform.
 
-## Phase 4 — Delivery and operations
+## Phase 4 — Delivery and operations (complete)
 
-Build `06-devops/README.md` for the operational knowledge expected from a senior engineer.
+Built `06-devops/README.md` for the operational knowledge expected from a senior engineer.
 
-- [ ] Container images, layers, build security, and runtime limits.
-- [ ] Kubernetes pods, deployments, services, ingress, and probes.
-- [ ] Requests, limits, autoscaling, disruption budgets, and scheduling.
-- [ ] Configuration, secrets, workload identity, and network policy.
-- [ ] CI/CD pipelines, artifact promotion, and supply-chain security.
-- [ ] Rolling, blue-green, and canary deployments.
-- [ ] Infrastructure as code and environment drift.
-- [ ] Cloud networking, DNS, load balancers, and managed data services.
-- [ ] Observability, alerting, incident response, and postmortems.
-- [ ] Cost, capacity, availability, and disaster-recovery trade-offs.
+- [x] Container images, layers, build security, and runtime limits.
+- [x] Kubernetes pods, deployments, services, ingress, and probes.
+- [x] Requests, limits, autoscaling, disruption budgets, and scheduling.
+- [x] Configuration, secrets, workload identity, and network policy.
+- [x] CI/CD pipelines, artifact promotion, and supply-chain security.
+- [x] Rolling, blue-green, and canary deployments.
+- [x] Infrastructure as code and environment drift.
+- [x] Cloud networking, DNS, load balancers, and managed data services.
+- [x] Observability, alerting, incident response, and postmortems.
+- [x] Cost, capacity, availability, and disaster-recovery trade-offs.
 
 ## Phase 5 — Full-stack and behavioral preparation
 
