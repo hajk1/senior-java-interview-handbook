@@ -2,13 +2,13 @@
 
 A practical, interview-focused handbook for senior Java engineers. It concentrates on the questions that appear most often, explains what happens beneath framework annotations, and connects technical answers to production trade-offs.
 
-The handbook currently contains **382 questions and model answers** across Core Java, Spring, databases, microservices, and system design.
+The handbook currently contains **385 questions and model answers** across Core Java, Spring, databases, microservices, and system design.
 
 ## Chapters
 
 | Chapter | Coverage | Questions | Status |
 |---|---|---:|---|
-| [Core Java](01-java-core/README.md) | Object model, collections, generics, streams, concurrency, JVM, and modern Java | 72 | Available |
+| [Core Java](01-java-core/README.md) | Object model, collections, generics, streams, concurrency, JVM, and modern Java | 75 | Available |
 | [Spring and Spring Boot](02-spring/README.md) | DI, bean lifecycle, AOP, transactions, Boot, MVC, JPA, Security, and testing | 50 | Available |
 | [Databases](03-database/README.md) | SQL, modeling, indexes, isolation, locking, optimization, replication, and scaling | 76 | Available |
 | [Microservices](04-microservices/README.md) | Service boundaries, resilience, messaging, consistency, security, and observability | 88 | Available |
