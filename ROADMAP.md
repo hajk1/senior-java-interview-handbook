@@ -12,7 +12,7 @@ This roadmap tracks the handbook from its current interview-question chapters to
 | Microservices | Complete | 88 questions | Add worked resilience and messaging exercises |
 | System Design | Complete | 96 questions | Add more worked case studies and diagrams |
 | DevOps | Complete | 73 questions | Add worked runbook and IaC exercises |
-| React | Planned | Empty scaffold | Cover senior full-stack interview topics |
+| React | Complete | 58 questions | Add worked hook and performance-debugging exercises |
 | Behavioral | Planned | Empty scaffold | Add leadership questions and STAR preparation |
 | Revision materials | Planned | Empty scaffold | Populate checklist, quick revision, and cheat sheets |
 
@@ -122,16 +122,16 @@ Built `06-devops/README.md` for the operational knowledge expected from a senior
 
 ## Phase 5 — Full-stack and behavioral preparation
 
-### React
+### React (complete)
 
-Build `05-react/README.md` for full-stack senior Java roles.
+Built `05-react/README.md` for full-stack senior Java roles.
 
-- [ ] Rendering, reconciliation, component identity, and keys.
-- [ ] State, props, hooks, closures, and effect lifecycles.
-- [ ] Context, reducers, server state, and state-management trade-offs.
-- [ ] Performance profiling, memoization, code splitting, and virtualization.
-- [ ] Forms, accessibility, security, and error handling.
-- [ ] Component, integration, and end-to-end testing.
+- [x] Rendering, reconciliation, component identity, and keys.
+- [x] State, props, hooks, closures, and effect lifecycles.
+- [x] Context, reducers, server state, and state-management trade-offs.
+- [x] Performance profiling, memoization, code splitting, and virtualization.
+- [x] Forms, accessibility, security, and error handling.
+- [x] Component, integration, and end-to-end testing.
 
 ### Behavioral
 
