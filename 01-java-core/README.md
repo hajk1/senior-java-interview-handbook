@@ -407,13 +407,33 @@ A write to a volatile variable happens-before a later read of that variable, pro
 
 `volatile` works well for an independent state flag or safely publishing an immutable object. It cannot protect an invariant spanning multiple variables. Use locking or an appropriate atomic abstraction for compound state transitions.
 
-### 46. Explain the Java Memory Model and happens-before.
+### 46. What is the difference between `volatile` and `synchronized`?
+
+`volatile` guarantees visibility and ordering for reads and writes of a single variable but no mutual exclusion: two threads can still race inside a compound operation like `count++`. `synchronized` guarantees both mutual exclusion (only one thread executes the critical section at a time) and visibility, because the monitor unlock/lock pair establishes a happens-before edge.
+
+| | `volatile` | `synchronized` |
+|---|---|---|
+| Mutual exclusion | No | Yes |
+| Visibility | Yes, for that variable | Yes, for everything visible to the thread at unlock time |
+| Blocks/parks threads | No | Yes, contending threads block |
+| Applies to | A single field | A block of code (a critical section) |
+| Good for | An independent flag or safe publication of an immutable reference | Protecting an invariant spanning multiple variables or a compound action |
+
+`volatile` is not a lightweight substitute for locking whenever more than one variable, or a read-modify-write step, must stay consistent together.
+
+### 47. What is the scope of memory visibility guaranteed by a synchronized block?
+
+Acquiring a monitor and later releasing it does not only make the fields touched inside that block visible—it makes **every write the thread made before the unlock** visible to the next thread that acquires the *same* monitor, and every write that other thread makes after the lock will see, transitively, everything visible at the point it acquired. This falls directly out of the JMM's happens-before rule: unlock happens-before a subsequent lock of the same monitor.
+
+The common trap is assuming synchronization only protects the variables textually inside the block. In practice, code often reads or writes unrelated shared state just before entering or just after leaving a synchronized block and relies (incorrectly) on that state being visible without protection—it is not, unless every access to it also goes through the same lock, a volatile field, or another happens-before edge. Two threads synchronizing on *different* monitors get no visibility guarantee between them at all.
+
+### 48. Explain the Java Memory Model and happens-before.
 
 The Java Memory Model defines which writes one thread is guaranteed to observe and which reorderings are legal. In the absence of a happens-before relationship, a data race can produce stale or surprising observations even if the code appears ordered in each thread.
 
 Important happens-before edges include monitor unlock-to-lock, volatile write-to-read, actions before `Thread.start()` to the new thread, and all actions in a thread to another thread successfully returning from `join()`.
 
-### 47. `synchronized` versus `ReentrantLock`?
+### 49. `synchronized` versus `ReentrantLock`?
 
 Both provide mutual exclusion and visibility. `ReentrantLock` additionally offers interruptible lock acquisition, timed `tryLock`, optional fairness, multiple `Condition`s, and explicit lock management.
 
@@ -428,13 +448,13 @@ try {
 
 Prefer `synchronized` when its structured simplicity is enough. Use explicit locks for a specific capability, not because they are assumed to be universally faster.
 
-### 48. Atomic variables versus `LongAdder`?
+### 50. Atomic variables versus `LongAdder`?
 
 `AtomicInteger` and `AtomicLong` use atomic compare-and-set style operations and are appropriate when updates and exact reads must form one linearizable value. Compound multi-variable invariants still need broader coordination.
 
 `LongAdder` spreads updates across cells to reduce contention and is excellent for high-update statistics. `sum()` is not an atomic snapshot relative to concurrent updates, so it is inappropriate for identifiers or exact coordination.
 
-### 49. How should a thread pool be sized and configured?
+### 51. How should a thread pool be sized and configured?
 
 There is no universal number. CPU-bound work often starts near the available processor count. I/O-bound work can use more threads according to wait time, service limits, memory, and measured throughput.
 
@@ -449,13 +469,13 @@ Always consider:
 
 An unbounded queue can convert overload into high latency and memory exhaustion.
 
-### 50. `Runnable`, `Callable`, `Future`, and `CompletableFuture`?
+### 52. `Runnable`, `Callable`, `Future`, and `CompletableFuture`?
 
 `Runnable` returns no result and cannot declare checked exceptions. `Callable<T>` returns a value and may throw. `Future<T>` represents a submitted result but offers limited composition. `CompletableFuture<T>` supports non-blocking completion stages and composition.
 
 Use `thenCompose` for an asynchronous function that already returns a future; `thenApply` would create a nested future. Know which executor executes each stage. Non-`Async` continuations may run in the thread that completes the previous stage; `*Async` methods without an executor typically use the common pool.
 
-### 51. How do interruption and cancellation work?
+### 53. How do interruption and cancellation work?
 
 Interruption is a cooperative request, not forced thread termination. Blocking methods may throw `InterruptedException` and clear the status. Code that cannot handle it should usually restore the status and exit or propagate:
 
@@ -468,13 +488,13 @@ catch (InterruptedException e) {
 
 `Future.cancel(true)` requests interruption if the task is running; it cannot guarantee that a task ignoring interruption will stop. Never swallow interruption silently.
 
-### 52. What causes deadlock, and how do you prevent it?
+### 54. What causes deadlock, and how do you prevent it?
 
 Deadlock typically requires mutual exclusion, hold-and-wait, no forced preemption, and circular wait. Prevent it by imposing a global lock order, avoiding nested locks, keeping locked sections small, using timed acquisition where appropriate, and avoiding unknown external code while holding locks.
 
 Diagnose with thread dumps: look for threads waiting on locks held in a cycle. Random delays may hide the issue but do not fix it.
 
-### 53. `CountDownLatch`, `CyclicBarrier`, `Semaphore`, and `Phaser`?
+### 55. `CountDownLatch`, `CyclicBarrier`, `Semaphore`, and `Phaser`?
 
 | Utility | Purpose |
 |---|---|
@@ -485,13 +505,13 @@ Diagnose with thread dumps: look for threads waiting on locks held in a cycle. R
 
 Use higher-level concurrency utilities before hand-writing wait/notify protocols. A semaphore bounds concurrency; it does not itself guarantee fairness or protect a complex invariant.
 
-### 54. How does `ConcurrentHashMap.computeIfAbsent` help, and what are its traps?
+### 56. How does `ConcurrentHashMap.computeIfAbsent` help, and what are its traps?
 
 It atomically computes and installs a value when a key is absent, avoiding a check-then-act race. The mapping function should be short, side-effect-aware, and must not recursively update the same map in a way that violates its contract.
 
 It can be useful for memoization, but unbounded keys create an unbounded cache. For production caching, consider eviction, expiry, failure behavior, and stampede handling.
 
-### 55. Platform threads versus virtual threads?
+### 57. Platform threads versus virtual threads?
 
 Platform threads are typically mapped to operating-system threads and are relatively expensive in large numbers. Virtual threads are lightweight JVM-managed threads designed to make thread-per-task style scale for high-concurrency blocking I/O.
 
@@ -501,7 +521,7 @@ Virtual threads improve scale, not the speed of CPU work. They do not remove dat
 
 ## 7. JVM and memory
 
-### 56. What are the main JVM runtime memory areas?
+### 58. What are the main JVM runtime memory areas?
 
 - **Heap:** objects and arrays, shared across threads and managed by GC.
 - **Java stacks:** per-thread frames containing local variables, operand stacks, and call state.
@@ -512,19 +532,19 @@ Virtual threads improve scale, not the speed of CPU work. They do not remove dat
 
 An `OutOfMemoryError` may refer to heap, metaspace, direct buffer memory, native thread creation, or another native allocation—not only “too many objects on heap.”
 
-### 57. Stack versus heap?
+### 59. Stack versus heap?
 
 Method invocation frames are placed on a thread's stack; objects are conceptually allocated on the heap. References can exist in either place. The JIT may eliminate allocations or scalar-replace objects, so the source-level model is not a guarantee of physical placement.
 
 Deep or infinite recursion can cause `StackOverflowError`. Retaining an ever-growing reachable object graph can exhaust the heap.
 
-### 58. How does garbage collection determine that an object is collectible?
+### 60. How does garbage collection determine that an object is collectible?
 
 The JVM traces from GC roots—such as live thread stacks, static references, and JNI references. Objects not reachable from those roots are eligible for collection, including isolated cycles.
 
 Eligibility does not imply immediate reclamation. A Java memory leak is usually an object that is no longer useful but remains strongly reachable through caches, listeners, static collections, queues, class loaders, or `ThreadLocal`s.
 
-### 59. Strong, soft, weak, and phantom references?
+### 61. Strong, soft, weak, and phantom references?
 
 - **Strong:** ordinary reference; keeps the object alive.
 - **Soft:** may be cleared under memory pressure; unsuitable for predictable cache policy.
@@ -533,13 +553,13 @@ Eligibility does not imply immediate reclamation. A Java memory leak is usually 
 
 Reference types do not replace explicit resource management. Close files, sockets, and native resources deterministically.
 
-### 60. What does a generational collector optimize for?
+### 62. What does a generational collector optimize for?
 
 Most objects die young. Generational collectors place newly allocated objects into a young generation and collect it frequently; survivors may be promoted. Older regions are collected less often or concurrently depending on the collector.
 
 The names and mechanics vary by collector. Senior analysis should focus on allocation rate, live-set size, pause and throughput goals, promotion, humongous objects, and evidence from GC logs rather than memorized folklore.
 
-### 61. How do you investigate an `OutOfMemoryError`?
+### 63. How do you investigate an `OutOfMemoryError`?
 
 1. Identify the exact OOME message and whether memory is heap or native.
 2. Preserve evidence: heap dump near failure, GC logs, native-memory data, container metrics, thread count, and application metrics.
@@ -549,19 +569,19 @@ The names and mechanics vary by collector. Senior analysis should focus on alloc
 
 Increasing the heap can delay a leak and lengthen collection pauses without fixing it.
 
-### 62. What are class loading and parent delegation?
+### 64. What are class loading and parent delegation?
 
 Class loaders load class bytes and define runtime classes. A class's identity is its binary name plus its defining class loader. Parent-first delegation normally asks the parent before attempting local loading, protecting platform classes and encouraging consistency.
 
 Application servers, plugin systems, and hot reload may use multiple loaders. A static field is singleton only within one loaded class identity, and class-loader leaks can retain entire application graphs.
 
-### 63. What does the JIT compiler do?
+### 65. What does the JIT compiler do?
 
 The JVM begins with interpreted or lightly compiled execution, profiles hot code, and compiles frequently executed paths with optimizations such as inlining, escape analysis, lock elimination, and speculative optimization. Invalidated assumptions can cause deoptimization.
 
 This makes naive microbenchmarks misleading. Use JMH, allow warmup, consume results, isolate setup, consider constant folding and dead-code elimination, and measure the actual production objective.
 
-### 64. What is safe publication?
+### 66. What is safe publication?
 
 Safe publication ensures another thread sees a fully initialized object. It can be achieved through static initialization, storing into a volatile field, publishing under the same lock used by readers, thread-safe collections, or correctly constructed objects with final-field guarantees.
 
@@ -571,7 +591,7 @@ Letting `this` escape from a constructor—such as registering a listener before
 
 ## 8. Modern Java
 
-### 65. What are records, and are they immutable?
+### 67. What are records, and are they immutable?
 
 A record is a concise nominal data carrier with final component fields, accessors, a canonical constructor, and generated `equals`, `hashCode`, and `toString`. Records are implicitly final and can implement interfaces.
 
@@ -586,13 +606,13 @@ record Order(String id, List<String> items) {
 }
 ```
 
-### 66. What are sealed classes?
+### 68. What are sealed classes?
 
 A sealed class or interface restricts direct permitted subtypes. Each permitted subtype must be `final`, `sealed`, or `non-sealed`. This is useful for closed domain alternatives and enables exhaustive pattern matching.
 
 Use sealing when the set of variants is intentionally controlled. Do not seal an extension API that third parties are expected to implement freely.
 
-### 67. What does pattern matching improve?
+### 69. What does pattern matching improve?
 
 Pattern matching combines a type test with safe extraction, reducing casts and making algebraic-style domain handling clearer. Java supports patterns for `instanceof`, record patterns, and pattern matching in `switch` in modern releases.
 
@@ -607,13 +627,13 @@ static BigDecimal total(Payment payment) {
 
 With a sealed hierarchy, the compiler can check exhaustiveness. Keep domain behavior on objects when polymorphism is the better design; pattern matching is especially useful when operations vary independently of a closed data hierarchy.
 
-### 68. What are modules, and why are they different from packages?
+### 70. What are modules, and why are they different from packages?
 
 The Java Platform Module System groups packages into named modules with explicit dependencies and exported packages. A package controls source-level names and access; a module controls readability and strong encapsulation across package boundaries.
 
 `requires` declares dependencies, `exports` exposes API packages, `opens` permits deep reflection, and `uses`/`provides` support services. The unnamed module preserves classpath compatibility. Framework migrations can require targeted `opens`, but broadly opening everything loses encapsulation benefits.
 
-### 69. What is `var`?
+### 71. What is `var`?
 
 `var` requests local-variable type inference; Java remains statically typed and the compiler fixes the type from the initializer. It is limited to local contexts and does not make Java dynamically typed.
 
@@ -623,19 +643,19 @@ Use it when the type is obvious or repeated and the variable name communicates i
 
 ## 9. Design and production scenarios
 
-### 70. How would you design a thread-safe in-memory cache?
+### 72. How would you design a thread-safe in-memory cache?
 
 Start by defining semantics: maximum size, expiry, eviction, concurrent loading, failure caching, null handling, consistency, and metrics. `ConcurrentHashMap` alone provides thread-safe storage but not bounded memory or complete cache policy.
 
 Avoid a cache stampede by coordinating one load per key, but ensure failed or cancelled loads do not poison the entry forever. In production, prefer a proven cache library unless the requirement is deliberately minimal.
 
-### 71. How do you avoid resource leaks in Java services?
+### 73. How do you avoid resource leaks in Java services?
 
 Use try-with-resources for deterministic lifetime, bound executors and queues, shut down owned thread pools, remove `ThreadLocal` values in pooled threads, unregister listeners, close HTTP responses/streams, and give caches eviction policies.
 
 Ownership must be explicit: the component that creates or acquires a resource should know whether it owns closing it. GC reclaims Java memory; it does not provide timely release of file descriptors, sockets, or database connections.
 
-### 72. How do you choose a collection?
+### 74. How do you choose a collection?
 
 Choose from behavior, not habit:
 
@@ -648,19 +668,19 @@ Choose from behavior, not habit:
 
 Then measure if performance matters. Big-O omits allocation, cache locality, contention, and actual distributions.
 
-### 73. How would you diagnose high CPU in a Java process?
+### 75. How would you diagnose high CPU in a Java process?
 
 Correlate process/container CPU with thread-level evidence. Take multiple thread dumps or a profile, identify repeatedly runnable hot threads and stacks, then connect them to request traces, workload, lock contention, GC activity, compilation, or a tight loop.
 
 Possible causes include inefficient algorithms, retry storms, serialization, regex backtracking, excessive allocation/GC, busy waiting, lock spinning, and too much parallelism. Optimize the measured hot path and retest; do not infer it from a single snapshot.
 
-### 74. How would you diagnose a hanging Java service?
+### 76. How would you diagnose a hanging Java service?
 
 Check whether it is deadlocked, blocked on external I/O, waiting for a depleted connection or thread pool, overloaded behind an unbounded queue, paused by GC, or unable to make scheduler progress. Gather thread dumps over time, pool metrics, dependency latency, traces, socket state, and GC logs.
 
 A service can appear idle while all request threads wait on one downstream call. Always configure deadlines and expose saturation metrics for each bounded resource.
 
-### 75. What distinguishes a senior Core Java answer?
+### 77. What distinguishes a senior Core Java answer?
 
 - States contracts precisely instead of relying on folklore.
 - Connects `equals` and immutability to collection correctness.
@@ -697,18 +717,19 @@ Before an interview, answer these without notes:
 16. Why can parallel streams hurt server throughput?
 17. Atomicity versus visibility?
 18. `synchronized` versus `volatile`?
-19. What is a happens-before relationship?
-20. How do you prevent deadlock?
-21. How should a thread pool be bounded?
-22. How should interruption be handled?
-23. Platform thread versus virtual thread?
-24. How does the JVM find collectible objects?
-25. What causes a Java memory leak?
-26. Stack versus heap versus metaspace?
-27. How do you investigate OOME or high CPU?
-28. Why are naive microbenchmarks unreliable?
-29. Are records deeply immutable?
-30. When are sealed classes useful?
+19. What does a synchronized block make visible, and to whom?
+20. What is a happens-before relationship?
+21. How do you prevent deadlock?
+22. How should a thread pool be bounded?
+23. How should interruption be handled?
+24. Platform thread versus virtual thread?
+25. How does the JVM find collectible objects?
+26. What causes a Java memory leak?
+27. Stack versus heap versus metaspace?
+28. How do you investigate OOME or high CPU?
+29. Why are naive microbenchmarks unreliable?
+30. Are records deeply immutable?
+31. When are sealed classes useful?
 
 ### Thirty-second summary
 
