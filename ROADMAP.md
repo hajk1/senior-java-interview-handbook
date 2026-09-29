@@ -6,14 +6,14 @@ This roadmap tracks the handbook from its current interview-question chapters to
 
 | Area | Status | Current scope | Next improvement |
 |---|---|---|---|
-| Core Java | Complete | 75 questions | Add focused coding exercises and diagrams |
+| Core Java | Complete | 77 questions | Add focused coding exercises and diagrams |
 | Spring and Spring Boot | Complete | 50 questions | Add configuration and debugging exercises |
 | Databases | Complete | 76 questions | Add SQL exercises and execution-plan examples |
 | Microservices | Complete | 88 questions | Add worked resilience and messaging exercises |
 | System Design | Complete | 96 questions | Add more worked case studies and diagrams |
-| DevOps | Complete | 73 questions | Add worked runbook and IaC exercises |
+| DevOps | Complete | 74 questions | Add worked runbook and IaC exercises |
 | React | Complete | 58 questions | Add worked hook and performance-debugging exercises |
-| Behavioral | Planned | Empty scaffold | Add leadership questions and STAR preparation |
+| Behavioral | In progress | 2 questions (testing difficulty, AI-assisted debugging) | Add leadership, ownership, conflict, and mentoring stories |
 | Revision materials | Planned | Empty scaffold | Populate checklist, quick revision, and cheat sheets |
 
 ## Phase 1 — Backend foundations
@@ -137,7 +137,8 @@ Built `05-react/README.md` for full-stack senior Java roles.
 
 Build `08-behavioral/README.md` around evidence-based senior-level stories.
 
-- [ ] Create a reusable STAR story bank.
+- [x] Started `08-behavioral/README.md` with a STAR-based "how to answer" framework and two initial prompts (testing difficulty, AI-assisted debugging).
+- [ ] Create a broader reusable STAR story bank.
 - [ ] Leadership without authority.
 - [ ] Technical disagreement and conflict resolution.
 - [ ] Production incidents and ownership.
