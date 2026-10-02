@@ -6,14 +6,15 @@ This roadmap tracks the handbook from its current interview-question chapters to
 
 | Area | Status | Current scope | Next improvement |
 |---|---|---|---|
-| Core Java | Complete | 77 questions | Add focused coding exercises and diagrams |
-| Spring and Spring Boot | Complete | 50 questions | Add configuration and debugging exercises |
+| Core Java | Complete | 81 questions | Add focused coding exercises and diagrams |
+| Spring and Spring Boot | Complete | 53 questions | Add configuration and debugging exercises |
 | Databases | Complete | 76 questions | Add SQL exercises and execution-plan examples |
 | Microservices | Complete | 88 questions | Add worked resilience and messaging exercises |
 | System Design | Complete | 96 questions | Add more worked case studies and diagrams |
 | DevOps | Complete | 74 questions | Add worked runbook and IaC exercises |
 | React | Complete | 58 questions | Add worked hook and performance-debugging exercises |
-| Behavioral | In progress | 2 questions (testing difficulty, AI-assisted debugging) | Add leadership, ownership, conflict, and mentoring stories |
+| Behavioral | In progress | 4 questions (testing difficulty, test-coverage gaps, how much testing is enough, AI-assisted debugging) | Add leadership, ownership, conflict, and mentoring stories |
+| Live problem-solving | Complete | 11 questions (method plus 6 worked exercises) | Add more exercises (SQL, Spring debugging, concurrency bugs) |
 | Revision materials | Planned | Empty scaffold | Populate checklist, quick revision, and cheat sheets |
 
 ## Phase 1 — Backend foundations
@@ -133,11 +134,21 @@ Built `05-react/README.md` for full-stack senior Java roles.
 - [x] Forms, accessibility, security, and error handling.
 - [x] Component, integration, and end-to-end testing.
 
+### Live problem-solving (complete)
+
+Built `09-live-coding/README.md` for the screen-share exercise round.
+
+- [x] Method: clarify, examples, approach, code, test, discuss.
+- [x] Communication, recovery when stuck, and evaluation criteria.
+- [x] Worked exercises: LRU cache, token bucket, top-K, interval merge, bounded blocking queue, retry with jitter.
+- [ ] Add exercises for SQL, Spring debugging, and concurrency-bug hunts.
+
 ### Behavioral
 
 Build `08-behavioral/README.md` around evidence-based senior-level stories.
 
 - [x] Started `08-behavioral/README.md` with a STAR-based "how to answer" framework and two initial prompts (testing difficulty, AI-assisted debugging).
+- [x] Added test-gap and "how much testing is enough" prompts.
 - [ ] Create a broader reusable STAR story bank.
 - [ ] Leadership without authority.
 - [ ] Technical disagreement and conflict resolution.

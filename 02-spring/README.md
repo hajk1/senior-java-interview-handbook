@@ -466,7 +466,40 @@ Stop accepting new traffic, fail readiness, allow in-flight work to finish withi
 
 Shutdown hooks and `@PreDestroy` should be bounded and should not start new work. Exactly-once claims during shutdown deserve scrutiny; design message processing to tolerate redelivery.
 
-### 50. What signals distinguish a senior Spring answer?
+### 50. What is the difference between `BeanFactoryPostProcessor` and `BeanPostProcessor`?
+
+A `BeanFactoryPostProcessor` runs once, after bean *definitions* are loaded but before any regular bean is instantiated, and can modify the definitions themselves. `PropertySourcesPlaceholderConfigurer` (resolving `${...}`) and `@Configuration` class processing are examples. A `BeanPostProcessor` runs around the initialization of every bean *instance* and may wrap or replace it; auto-proxy creators for AOP, `@Transactional`, `@Async`, and `@Autowired` handling are implemented this way.
+
+Trap: a `BeanPostProcessor` is itself created very early, so beans it depends on are instantiated before all post-processors exist and are not proxied. Spring logs "not eligible for getting processed by all BeanPostProcessors" for this. Declare such post-processors as `static` `@Bean` methods and keep their dependencies minimal.
+
+### 51. What actually happens at runtime when a `@Transactional` method is called?
+
+The call hits the proxy, whose `TransactionInterceptor` asks the `PlatformTransactionManager` for a transaction according to the propagation setting. For JDBC or JPA, the manager acquires a connection and binds it, with the `EntityManager` or synchronizations, to the current thread through `TransactionSynchronizationManager` (thread-local resources). Repositories and `JdbcTemplate` calls on that same thread find the bound connection and participate. On normal return the interceptor commits; on a rollback-qualifying exception it rolls back.
+
+Consequences:
+
+- Work moved to another thread (`@Async`, `CompletableFuture`, a parallel stream) does not participate in the caller's transaction.
+- The connection is held from the first use until the method ends, so slow remote calls inside a transaction hold a pool connection and, in many setups, locks.
+- A reactive transaction uses a different mechanism (Reactor context, not thread-bound).
+- `@TransactionalEventListener` and `TransactionSynchronization` callbacks let you run work such as publishing after commit.
+
+```java
+@Transactional
+public void placeOrder(Order o) {
+    orderRepo.save(o);
+    // BAD: remote call holds the connection and row locks open
+    // paymentClient.charge(o);
+    events.publishEvent(new OrderPlaced(o.id())); // handled with @TransactionalEventListener(AFTER_COMMIT)
+}
+```
+
+### 52. How does Spring create implementations for Spring Data repository interfaces?
+
+At startup, repository scanning registers a `FactoryBean` for each repository interface. The factory builds a JDK proxy that implements the interface and delegates to a shared base implementation (for example `SimpleJpaRepository`) for CRUD methods. For derived or `@Query` methods, a query-lookup strategy parses the method name or annotation once at startup and creates a query object; invalid property names fail at startup, not at first call. The proxy is also wrapped with a transaction interceptor, which is why the inherited CRUD methods are transactional by default and `readOnly` for finders.
+
+Interview relevance: this explains why you can inject an interface without writing an implementation, why a typo in a derived method name breaks startup, and why a repository is a proxy that you cannot trivially subclass or mock by constructing it directly.
+
+### 53. What distinguishes a senior Spring answer?
 
 A strong answer consistently connects framework behavior to system behavior:
 
@@ -507,6 +540,9 @@ Before an interview, be able to answer these without notes:
 18. Slice test versus full-context test?
 19. Why can `@Async` exhaust a system?
 20. How do you solve a database-and-broker dual write?
+21. `BeanFactoryPostProcessor` versus `BeanPostProcessor`?
+22. What happens at runtime when a `@Transactional` method is called, and why does another thread not join it?
+23. How are Spring Data repository interfaces implemented?
 
 ### Thirty-second summary
 

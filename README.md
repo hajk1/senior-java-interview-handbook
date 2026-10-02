@@ -2,20 +2,21 @@
 
 A practical, interview-focused handbook for senior Java engineers. It concentrates on the questions that appear most often, explains what happens beneath framework annotations, and connects technical answers to production trade-offs.
 
-The handbook currently contains **521 questions and model answers** across Core Java, Spring, databases, microservices, DevOps, React, system design, and behavioral prep.
+The handbook currently contains **541 questions and model answers** across Core Java, Spring, databases, microservices, DevOps, React, system design, and behavioral prep, and live problem-solving.
 
 ## Chapters
 
 | Chapter | Coverage | Questions | Status |
 |---|---|---:|---|
-| [Core Java](01-java-core/README.md) | Object model, collections, generics, streams, concurrency, JVM, and modern Java | 77 | Available |
-| [Spring and Spring Boot](02-spring/README.md) | DI, bean lifecycle, AOP, transactions, Boot, MVC, JPA, Security, and testing | 50 | Available |
+| [Core Java](01-java-core/README.md) | Object model, collections, generics, streams, concurrency, JVM, and modern Java | 81 | Available |
+| [Spring and Spring Boot](02-spring/README.md) | DI, bean lifecycle, AOP, transactions, Boot, MVC, JPA, Security, and testing | 53 | Available |
 | [Databases](03-database/README.md) | SQL, modeling, indexes, isolation, locking, optimization, replication, and scaling | 76 | Available |
 | [Microservices](04-microservices/README.md) | Service boundaries, resilience, messaging, consistency, security, and observability | 88 | Available |
 | [React](05-react/README.md) | Components, hooks, state, rendering, performance, and testing | 58 | Available |
 | [DevOps](06-devops/README.md) | Containers, Kubernetes, CI/CD, cloud infrastructure, and operations | 74 | Available |
 | [System Design](07-system-design/README.md) | Requirements, estimation, APIs, data, architecture, reliability, and worked scenarios | 96 | Available |
-| [Behavioral](08-behavioral/README.md) | Leadership, ownership, conflict, delivery, and STAR stories | 2 | In progress |
+| [Behavioral](08-behavioral/README.md) | Leadership, ownership, conflict, delivery, and STAR stories | 4 | In progress |
+| [Live Problem-Solving](09-live-coding/README.md) | Screen-share exercise method, communication, and worked Java exercises | 11 | Available |
 
 ## What makes this handbook different?
 
@@ -60,6 +61,7 @@ For example, do not stop at “`@Transactional` starts a transaction.” Explain
 4. **Microservices** — service boundaries, distributed consistency, resilience, and messaging.
 5. **System Design** — apply the foundations through estimations, architecture trade-offs, and worked scenarios.
 6. **DevOps and behavioral preparation** — delivery, operations, and leadership evidence.
+7. **Live problem-solving** — practice narrating and structuring small coding exercises on a shared screen.
 
 ## Interview principles
 
@@ -83,6 +85,7 @@ senior-java-interview-handbook/
 ├── 06-devops/
 ├── 07-system-design/
 ├── 08-behavioral/
+├── 09-live-coding/
 ├── cheat-sheets/
 ├── templates/
 ├── INTERVIEW-CHECKLIST.md
@@ -103,4 +106,4 @@ Contributions are welcome. Keep additions interview-focused, technically precise
 
 ## Project status
 
-This handbook is under active development. Core Java, Spring, Database, Microservices, DevOps, React, and System Design chapters are available. Behavioral is in progress, and supporting revision materials are planned.
+This handbook is under active development. Core Java, Spring, Database, Microservices, DevOps, React, and System Design, and Live Problem-Solving chapters are available. Behavioral is in progress, and supporting revision materials are planned.
