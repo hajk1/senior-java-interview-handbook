@@ -680,7 +680,61 @@ Check whether it is deadlocked, blocked on external I/O, waiting for a depleted 
 
 A service can appear idle while all request threads wait on one downstream call. Always configure deadlines and expose saturation metrics for each bounded resource.
 
-### 77. What distinguishes a senior Core Java answer?
+### 77. How does `ThreadLocal` work, and why does it leak in thread pools?
+
+Each `Thread` owns a `ThreadLocal.ThreadLocalMap`; the `ThreadLocal` object is only the key. `get()` looks up the current thread's map using that key, so values are per thread without locking.
+
+The map holds keys weakly but values strongly. In a pooled thread that lives as long as the application, a value that is never removed stays reachable, and if it references a class loader (common on redeploys in servlet containers) it can pin an entire application's classes. Always call `remove()` in a `finally` block when the thread is borrowed from a pool. Prefer passing state explicitly; on modern JDKs consider `ScopedValue` where available, because `ThreadLocal` is mutable, inheritable by accident, and costly with millions of virtual threads.
+
+```java
+private static final ThreadLocal<RequestContext> CTX = new ThreadLocal<>();
+
+void handle(Request r) {
+    CTX.set(RequestContext.from(r));
+    try {
+        process(r);
+    } finally {
+        CTX.remove(); // otherwise the next request on this pooled thread sees stale state
+    }
+}
+```
+
+Also note that `ThreadLocal` state is not propagated to tasks submitted to another executor; this is why MDC logging context and Spring's security and transaction context "disappear" in `@Async` or `CompletableFuture` work unless explicitly propagated.
+
+### 78. How do you choose between G1, ZGC, and the Parallel collector?
+
+Choose from the goal, not from folklore:
+
+| Collector | Optimizes | Typical fit |
+|---|---|---|
+| Parallel | Throughput; stop-the-world pauses can be long | Batch jobs where total completion time matters |
+| G1 (default on server-class machines) | Balanced throughput with a pause-time target | General services with moderate heaps |
+| ZGC (generational in recent JDKs) | Very low, mostly heap-size-independent pauses | Latency-sensitive services, large heaps |
+| Serial | Minimal footprint | Tiny containers and single-core tools |
+
+Concurrent collectors trade CPU and memory headroom for shorter pauses, so a low-pause collector can reduce peak throughput. Before switching, read GC logs: check allocation rate, promotion, pause distribution, and whether the real problem is a leak or an oversized live set. Container CPU limits also matter, because the JVM sizes GC threads from the CPUs it detects. Collector availability and defaults vary by JDK version and vendor.
+
+### 79. What do lambdas compile to?
+
+The compiler turns the lambda body into a private synthetic method and emits an `invokedynamic` call site. On first execution, the bootstrap method (`LambdaMetafactory`) spins up an implementation of the functional interface and links the call site to it. Non-capturing lambdas can be cached as a singleton; capturing lambdas allocate an instance per evaluation to hold the captured values.
+
+Consequences worth knowing: a lambda is not an inner class file at compile time, its runtime class name is unspecified, and the deferred linking keeps startup cost and class-file size lower than anonymous classes. Serialization and stack traces of lambdas are implementation-specific. Do not rely on lambda identity or class name.
+
+### 80. What are autoboxing and the `Integer` cache, and what traps do they create?
+
+Autoboxing converts a primitive to its wrapper through `Integer.valueOf` (and the reverse through `intValue()`). `valueOf` returns cached instances for values in `-128..127` by default, so `==` on boxed values can appear to work for small numbers and fail for larger ones.
+
+```java
+Integer a = 127, b = 127;
+Integer c = 128, d = 128;
+System.out.println(a == b);      // true  (cached)
+System.out.println(c == d);      // false (distinct objects)
+System.out.println(c.equals(d)); // true
+```
+
+Other production traps: unboxing a `null` throws `NullPointerException` (for example `int x = map.get(key)`), boxing inside hot loops allocates heavily (`Long sum = 0L; sum += i;`), `List<Integer>.remove(int)` versus `remove(Object)` overload confusion, and mixed-type ternaries that silently unbox. Use primitives or primitive streams on hot paths and compare wrappers with `equals` or `Objects.equals`.
+
+### 81. What distinguishes a senior Core Java answer?
 
 - States contracts precisely instead of relying on folklore.
 - Connects `equals` and immutability to collection correctness.
@@ -730,6 +784,10 @@ Before an interview, answer these without notes:
 29. Why are naive microbenchmarks unreliable?
 30. Are records deeply immutable?
 31. When are sealed classes useful?
+32. How does `ThreadLocal` work, and how does it leak in a pool?
+33. How do you choose a garbage collector?
+34. What does a lambda compile to?
+35. What is the `Integer` cache, and what boxing traps exist?
 
 ### Thirty-second summary
 
