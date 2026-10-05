@@ -2,7 +2,7 @@
 
 A practical, interview-focused handbook for senior Java engineers. It concentrates on the questions that appear most often, explains what happens beneath framework annotations, and connects technical answers to production trade-offs.
 
-The handbook currently contains **541 questions and model answers** across Core Java, Spring, databases, microservices, DevOps, React, system design, and behavioral prep, and live problem-solving.
+The handbook currently contains **624 questions and model answers** across Core Java, Spring, databases, microservices, DevOps, React, system design, payments domain knowledge, behavioral prep, and live problem-solving.
 
 ## Chapters
 
@@ -17,6 +17,7 @@ The handbook currently contains **541 questions and model answers** across Core 
 | [System Design](07-system-design/README.md) | Requirements, estimation, APIs, data, architecture, reliability, and worked scenarios | 96 | Available |
 | [Behavioral](08-behavioral/README.md) | Leadership, ownership, conflict, delivery, and STAR stories | 4 | In progress |
 | [Live Problem-Solving](09-live-coding/README.md) | Screen-share exercise method, communication, and worked Java exercises | 11 | Available |
+| [Payments Domain](10-payments/README.md) | Card ecosystem, ISO 8583, Auth–Clear–Settle, switch design, reliability, Kafka, ledger, and reconciliation | 83 | Available |
 
 ## What makes this handbook different?
 
@@ -62,6 +63,7 @@ For example, do not stop at “`@Transactional` starts a transaction.” Explain
 5. **System Design** — apply the foundations through estimations, architecture trade-offs, and worked scenarios.
 6. **DevOps and behavioral preparation** — delivery, operations, and leadership evidence.
 7. **Live problem-solving** — practice narrating and structuring small coding exercises on a shared screen.
+8. **Payments domain** — for acquiring, switch, and payment-processing roles: ISO 8583, card schemes, and the Auth–Clear–Settle lifecycle.
 
 ## Interview principles
 
@@ -86,6 +88,7 @@ senior-java-interview-handbook/
 ├── 07-system-design/
 ├── 08-behavioral/
 ├── 09-live-coding/
+├── 10-payments/
 ├── cheat-sheets/
 ├── templates/
 ├── INTERVIEW-CHECKLIST.md
@@ -106,4 +109,4 @@ Contributions are welcome. Keep additions interview-focused, technically precise
 
 ## Project status
 
-This handbook is under active development. Core Java, Spring, Database, Microservices, DevOps, React, and System Design, and Live Problem-Solving chapters are available. Behavioral is in progress, and supporting revision materials are planned.
+This handbook is under active development. Core Java, Spring, Database, Microservices, DevOps, React, and System Design, Live Problem-Solving, and Payments Domain chapters are available. Behavioral is in progress, and supporting revision materials are planned.
