@@ -15,6 +15,7 @@ This roadmap tracks the handbook from its current interview-question chapters to
 | React | Complete | 58 questions | Add worked hook and performance-debugging exercises |
 | Behavioral | In progress | 4 questions (testing difficulty, test-coverage gaps, how much testing is enough, AI-assisted debugging) | Add leadership, ownership, conflict, and mentoring stories |
 | Live problem-solving | Complete | 11 questions (method plus 6 worked exercises) | Add more exercises (SQL, Spring debugging, concurrency bugs) |
+| Payments domain | Complete | 83 questions (ecosystem, ISO 8583, Auth–Clear–Settle, EMV/PIN/PCI, switch design, reliability, Kafka, ledger, scenarios) | Add worked ISO 8583 codec exercise, message traces, and sequence diagrams |
 | Revision materials | Planned | Empty scaffold | Populate checklist, quick revision, and cheat sheets |
 
 ## Phase 1 — Backend foundations
@@ -157,6 +158,19 @@ Build `08-behavioral/README.md` around evidence-based senior-level stories.
 - [ ] Mentoring, feedback, and team growth.
 - [ ] Prioritization, ambiguity, and stakeholder management.
 - [ ] Architecture decisions and measurable business impact.
+
+### Payments domain (complete)
+
+Built `10-payments/README.md` for acquiring, payment-switch, and card-processing architect roles.
+
+- [x] Card ecosystem, roles, interchange, and pricing.
+- [x] ISO 8583 structure, MTIs, bitmaps, data elements, dialects, and reversals.
+- [x] Auth–Clear–Settle lifecycle, disputes, and Visa/Mastercard differences.
+- [x] EMV, PIN, PCI DSS, tokenization, 3-D Secure, and HSMs.
+- [x] Switch and host architecture, correlation, timeouts, idempotency, and failure handling.
+- [x] Low-latency Java, Kafka, ledger, reconciliation, and operational scenarios.
+- [ ] Add annotated ISO 8583 message traces and sequence diagrams.
+- [ ] Add a worked codec and timeout/reversal exercise to the live-coding chapter.
 
 ## Phase 6 — Revision system
 
