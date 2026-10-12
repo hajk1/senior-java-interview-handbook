@@ -734,7 +734,93 @@ System.out.println(c.equals(d)); // true
 
 Other production traps: unboxing a `null` throws `NullPointerException` (for example `int x = map.get(key)`), boxing inside hot loops allocates heavily (`Long sum = 0L; sum += i;`), `List<Integer>.remove(int)` versus `remove(Object)` overload confusion, and mixed-type ternaries that silently unbox. Use primitives or primitive streams on hot paths and compare wrappers with `equals` or `Objects.equals`.
 
-### 81. What distinguishes a senior Core Java answer?
+### 81. How would you build a thread-safe lock on a shared resource that cannot be held longer than a TTL?
+
+Model it as a **lease**, not a plain mutex: acquisition returns a token and a deadline, the lease expires on its own, and release or use of the resource is only valid for the current token. First clarify scope — threads in one JVM, several processes on one host, or several service instances — because the mechanism changes at each boundary.
+
+For one JVM, guard the lease state with a single lock and measure time with `System.nanoTime()` (monotonic), never `System.currentTimeMillis()` (wall clock can jump):
+
+```java
+public final class LeaseLock {
+    private record Lease(long token, long deadlineNanos) {}
+
+    private final ReentrantLock monitor = new ReentrantLock();
+    private final Condition released = monitor.newCondition();
+    private final long ttlNanos;
+    private long nextToken;   // guarded by monitor
+    private Lease current;    // guarded by monitor
+
+    public LeaseLock(Duration ttl) { this.ttlNanos = ttl.toNanos(); }
+
+    public OptionalLong tryAcquire(Duration timeout) throws InterruptedException {
+        long giveUpAt = System.nanoTime() + timeout.toNanos();
+        monitor.lockInterruptibly();
+        try {
+            while (current != null && current.deadlineNanos() - System.nanoTime() > 0) {
+                long now = System.nanoTime();
+                if (giveUpAt - now <= 0) return OptionalLong.empty();
+                released.awaitNanos(Math.min(giveUpAt - now, current.deadlineNanos() - now));
+            }
+            current = new Lease(++nextToken, System.nanoTime() + ttlNanos);
+            return OptionalLong.of(current.token());
+        } finally {
+            monitor.unlock();
+        }
+    }
+
+    public boolean isValid(long token) {
+        monitor.lock();
+        try {
+            return current != null && current.token() == token
+                    && current.deadlineNanos() - System.nanoTime() > 0;
+        } finally {
+            monitor.unlock();
+        }
+    }
+
+    public boolean release(long token) {
+        monitor.lock();
+        try {
+            if (current == null || current.token() != token) return false; // expired and re-acquired
+            current = null;
+            released.signal();
+            return true;
+        } finally {
+            monitor.unlock();
+        }
+    }
+}
+```
+
+Points an interviewer probes:
+
+- **Expiry does not stop the old holder.** After the TTL the lock is free, but the previous thread may still be writing. Bound the work itself (socket/read timeouts, `Future.get(timeout)` plus `cancel(true)`), and have the resource reject stale tokens (fencing) where it can.
+- **Interruption is cooperative.** Blocking `java.io` socket reads ignore interrupts — close the socket or set `SO_TIMEOUT`; NIO `InterruptibleChannel`s close on interrupt.
+- **Release must check ownership.** Without the token check, a holder that overran its TTL releases the *next* holder's lock.
+- **Token ownership rather than thread ownership** makes the lease non-reentrant but usable across async callbacks and virtual threads.
+- **Waiters need a timeout** (`tryAcquire`), otherwise a slow holder turns into unbounded queueing; decide whether fairness matters.
+- **Renewal** (a watchdog extending the lease while work is healthy) trades the TTL guarantee for fewer false expiries — say which the requirement wants.
+
+For a file, `FileChannel.tryLock()` protects against *other processes*, not other threads: the lock is held on behalf of the whole JVM, overlapping requests in the same JVM throw `OverlappingFileLockException`, and on many systems it is advisory. Combine an in-JVM lock with the `FileLock`.
+
+If "not used longer than a TTL" means a **pooled** resource (connection, channel), the shape is different: a `Semaphore` or pool bounds concurrent use, a borrow timeout bounds waiting, and a max-lifetime/idle-timeout retires old instances on return or by a background evictor — the model HikariCP uses with `maxLifetime`.
+
+### 82. How does a TTL lock change when several service instances share the resource?
+
+An in-JVM lock no longer excludes anyone, so the lease must live in a shared store that all instances agree on, and correctness must not depend on the holder noticing its own expiry.
+
+| Option | Mechanism | Watch out for |
+|---|---|---|
+| Redis | `SET key token NX PX ttl`; release with a compare-and-delete script | Async replication can lose the lock on failover; clock/pauses outlive the TTL |
+| Database row | `UPDATE ... SET owner, lock_until WHERE lock_until < now()`; or `SELECT ... FOR UPDATE SKIP LOCKED` | Use the database clock; a held transaction pins a connection |
+| Advisory lock | Session/transaction-scoped lock (PostgreSQL) | Tied to the connection — pooling and proxies can break session locks |
+| ZooKeeper/etcd | Ephemeral node or lease with keep-alive | Operational cost; session expiry still races with in-flight work |
+
+A GC pause, a stalled VM, or a slow network call can outlast any TTL, so two holders can briefly coexist. The robust fix is a **fencing token**: a monotonically increasing number issued with each lease that the protected resource (or a conditional/versioned write) checks, rejecting older tokens. Where the resource cannot check tokens, make the operation idempotent and keep the TTL well above the worst-case work time.
+
+Choose the TTL from the measured p99 work duration plus margin: too short causes false expiry and duplicate work; too long delays recovery after a crash. Often the better answer is to avoid the lock entirely — a unique constraint, optimistic version column, or single-partition consumer enforces the invariant with fewer failure modes.
+
+### 83. What distinguishes a senior Core Java answer?
 
 - States contracts precisely instead of relying on folklore.
 - Connects `equals` and immutability to collection correctness.
@@ -788,6 +874,8 @@ Before an interview, answer these without notes:
 33. How do you choose a garbage collector?
 34. What does a lambda compile to?
 35. What is the `Integer` cache, and what boxing traps exist?
+36. How do you build a thread-safe lock that expires after a TTL, and why does expiry not stop the old holder?
+37. Why does a distributed lock need a fencing token?
 
 ### Thirty-second summary
 
@@ -801,4 +889,5 @@ Java is pass-by-value, dynamically dispatches overridden instance methods, and r
 - [Java concurrency guide](https://docs.oracle.com/en/java/javase/21/core/concurrency.html)
 - [Java language changes](https://docs.oracle.com/en/java/javase/21/language/java-language-changes-release.html)
 - [OpenJDK JEP index](https://openjdk.org/jeps/0)
+- [`FileLock` API (JVM-wide scope and platform dependencies)](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/channels/FileLock.html)
 

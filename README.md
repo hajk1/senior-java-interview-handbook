@@ -2,15 +2,15 @@
 
 A practical, interview-focused handbook for senior Java engineers. It concentrates on the questions that appear most often, explains what happens beneath framework annotations, and connects technical answers to production trade-offs.
 
-The handbook currently contains **624 questions and model answers** across Core Java, Spring, databases, microservices, DevOps, React, system design, payments domain knowledge, behavioral prep, and live problem-solving.
+The handbook currently contains **630 questions and model answers** across Core Java, Spring, databases, microservices, DevOps, React, system design, payments domain knowledge, behavioral prep, and live problem-solving.
 
 ## Chapters
 
 | Chapter | Coverage | Questions | Status |
 |---|---|---:|---|
-| [Core Java](01-java-core/README.md) | Object model, collections, generics, streams, concurrency, JVM, and modern Java | 81 | Available |
+| [Core Java](01-java-core/README.md) | Object model, collections, generics, streams, concurrency, JVM, and modern Java | 83 | Available |
 | [Spring and Spring Boot](02-spring/README.md) | DI, bean lifecycle, AOP, transactions, Boot, MVC, JPA, Security, and testing | 53 | Available |
-| [Databases](03-database/README.md) | SQL, modeling, indexes, isolation, locking, optimization, replication, and scaling | 76 | Available |
+| [Databases](03-database/README.md) | SQL, modeling, indexes, isolation, locking, optimization, replication, and scaling | 80 | Available |
 | [Microservices](04-microservices/README.md) | Service boundaries, resilience, messaging, consistency, security, and observability | 88 | Available |
 | [React](05-react/README.md) | Components, hooks, state, rendering, performance, and testing | 58 | Available |
 | [DevOps](06-devops/README.md) | Containers, Kubernetes, CI/CD, cloud infrastructure, and operations | 74 | Available |
@@ -48,7 +48,7 @@ For every topic, be ready to explain:
 
 ### Final pass: rapid revision
 
-Use the checklist at the end of each chapter. A strong response usually follows this structure:
+Use the checklist at the end of each chapter. For a deeper second-round technical interview, the [final-round cheat sheet](cheat-sheets/final-technical-interview.md) gives a four-day plan. A strong response usually follows this structure:
 
 > **Rule → mechanism → example → trade-off**
 

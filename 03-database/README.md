@@ -608,7 +608,75 @@ A backup is not proven until restoration is regularly tested. Test point-in-time
 
 Alert on user impact and resource saturation with actionable context, not every fluctuating counter.
 
-### 76. What distinguishes a senior database answer?
+### 76. A query or endpoint is slow. How do you tell whether the cause is an index, N+1, partitioning, locking, or the plan?
+
+Classify before fixing: each cause leaves a different fingerprint in two places — the database's per-statement statistics and the execution plan. Decide first whether one statement is slow or many fast statements add up, then whether the time is spent working or waiting.
+
+| Cause | Fingerprint | Typical fix |
+|---|---|---|
+| N+1 / chatty access | Statement stats show *high call count, low mean time*; a trace shows many near-identical queries per request; each query alone is fast | Fetch join, `@EntityGraph`, batch fetching, projection, or one purpose-built query |
+| Missing or unusable index | Plan shows a full/sequential scan with many rows read and few returned ("rows removed by filter"), or an index used only for part of the predicate | Add or reorder a composite index; make the predicate sargable; cover the query |
+| Bad estimates / plan regression | Estimated rows far from actual; wrong join algorithm or order; fast for one parameter and slow for another; slow after a data-volume change | Refresh statistics, extended/multi-column statistics, rewrite, handle parameter sensitivity |
+| Partitioning | Plan touches every partition — the predicate does not contain the partition key, or wraps it in a function/cast | Filter on the partition key directly; align the key with the access pattern; index inside partitions |
+| Lock or resource wait | Query is fast alone but slow under load; session shows a lock wait, or the time is spent waiting for a pool connection | Shorten transactions, fix lock order, index the predicate being locked, size the pool |
+| Sort / memory spill | Plan shows an explicit sort or hash spilling to disk | Index that supplies the order; reduce row width; limit earlier |
+| Result size | Fast in the database, slow in the application — large rows, `SELECT *`, serialization, network | Project fewer columns, paginate, stream |
+
+The workflow in practice: get the exact SQL and parameters from the slow-query log, APM trace, or statement statistics (`pg_stat_statements` in PostgreSQL, Performance Schema in MySQL); count queries per request; run `EXPLAIN (ANALYZE, BUFFERS)` (or MySQL `EXPLAIN ANALYZE`) with production-like parameters; check live sessions for waits (`pg_stat_activity` wait events). Change one thing and re-measure on representative data.
+
+Traps: a test database with 1,000 rows chooses different plans than production; a query that is fast in the SQL console but slow in the service usually points at N+1, fetch size, pool wait, or a different parameter type defeating the index (for example an implicit cast); and adding an index without confirming the plan uses it only adds write cost.
+
+### 77. Why does pagination get slower on deeper pages, and how do you fix it?
+
+Because `OFFSET` does not skip work — it skips *output*. For `LIMIT 20 OFFSET 100000` the database produces 100,020 rows in order and discards the first 100,000, so cost grows linearly with page depth. If no index supplies the ordering, it also sorts the whole matching set first.
+
+```sql
+-- Page 5001: reads and throws away 100,000 rows
+SELECT id, created_at, total FROM orders
+ORDER BY created_at DESC, id DESC
+LIMIT 20 OFFSET 100000;
+
+-- Keyset: seeks straight to the position; cost is independent of depth
+SELECT id, created_at, total FROM orders
+WHERE (created_at, id) < (:lastCreatedAt, :lastId)
+ORDER BY created_at DESC, id DESC
+LIMIT 20;
+```
+
+Diagnose with the plan: rows read far exceed rows returned and rise with the offset. Also check for a second hidden cost — a `COUNT(*)` for the total on every request. Spring Data's `Page` issues that count query; `Slice` (fetches size + 1) or keyset scrolling avoids it.
+
+Fixes, in order of preference:
+
+1. **Keyset (cursor) pagination** on an indexed, deterministic order with a unique tie-breaker; the API returns an opaque cursor encoding the last sort key.
+2. **Deferred join** when page jumps must remain: page over a narrow covering index to get ids, then join back for the wide rows — still O(offset), but over small index entries.
+3. **Bound the depth**: cap the maximum page, require narrower filters, or serve deep exports through an asynchronous job.
+4. **Cheaper totals**: approximate counts, cached counts, or "has next" instead of an exact total.
+
+Offset is also *incorrect* under concurrent writes: an insert before the current position shifts rows, so a client sees duplicates or misses rows between pages. Keyset is stable because it anchors on values, not positions. The same limit exists outside SQL — Elasticsearch restricts deep `from`/`size` and offers `search_after`.
+
+### 78. When is keyset (cursor) pagination still slow, or the wrong choice?
+
+Keyset is fast only when an index matches the *filter plus the ordering*; otherwise the database still scans or sorts and the cursor predicate is just another filter.
+
+Cases where it stays slow:
+
+- **No matching index.** The index needs equality-filter columns first, then the sort columns in order (`(tenant_id, created_at DESC, id DESC)`). Ordering by an unindexed or computed column forces a sort per page.
+- **Sparse filter along the index order.** If the index provides order but few rows pass an additional filter, each page walks many entries to find 20 matches.
+- **Predicate shape the optimizer handles poorly.** Row-value comparison `(a, b) < (?, ?)` is not optimized equally by every engine, and the expanded `a < ? OR (a = ? AND b < ?)` form can lose the range seek. Mixed sort directions cannot use a row-value comparison at all. Verify with the plan.
+- **Non-unique or nullable sort key.** Without a unique tie-breaker rows are skipped or repeated; nulls need explicit handling.
+- **An exact total is still requested** on every page.
+
+Cases where it is the wrong tool: the UI needs jump-to-page-N, the user can sort by arbitrary columns, or the ordering value changes while the user pages (a row can move across the cursor). Then use offset with a depth cap, a deferred join, or a search index.
+
+### 79. API pagination cursor versus database cursor: what is the difference?
+
+They share a name but are different things, and confusing them in an interview is costly. An **API cursor** is an opaque token for keyset pagination: stateless, one short query per page, no server resources held between requests. A **database cursor** is a server-side handle over an open result set from which the client fetches rows incrementally.
+
+A database cursor (or JDBC streaming with a fetch size) is right for one consumer reading a large result in bounded memory — an export or batch job. It is wrong for user-facing pagination: it pins a connection, usually requires an open transaction, holds a snapshot that delays cleanup, and cannot survive across stateless HTTP requests or instances.
+
+Cursors can also be slow on later fetches. PostgreSQL plans a cursor to return the *first* rows quickly (`cursor_tuple_fraction`, default 10%), which can favor a plan that is poor when the whole result is consumed. Driver behavior is vendor-specific: the PostgreSQL JDBC driver only uses a server-side cursor when autocommit is off and a fetch size is set, otherwise it buffers the entire result in memory; MySQL Connector/J needs streaming or `useCursorFetch` enabled.
+
+### 80. What distinguishes a senior database answer?
 
 - Starts from invariants and access patterns.
 - Treats constraints as correctness tools, not inconveniences.
@@ -659,6 +727,10 @@ Before an interview, answer these without notes:
 30. How does the transactional outbox solve dual writes?
 31. How do you perform a safe backfill?
 32. Why must backups be restore-tested?
+33. How do you tell an index problem from N+1, a bad plan, missed partition pruning, or a lock wait?
+34. Why do deep offset pages get slower, and what are the fixes?
+35. When is keyset pagination still slow or unsuitable?
+36. API cursor versus database cursor?
 
 ### Thirty-second summary
 
@@ -672,4 +744,9 @@ A relational database protects declared invariants through constraints and trans
 - [PostgreSQL query planning](https://www.postgresql.org/docs/current/performance-tips.html)
 - [MySQL 8.4 Reference Manual](https://dev.mysql.com/doc/refman/8.4/en/)
 - [MySQL InnoDB transaction model](https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-model.html)
+- [PostgreSQL `EXPLAIN` usage](https://www.postgresql.org/docs/current/using-explain.html)
+- [PostgreSQL `pg_stat_statements`](https://www.postgresql.org/docs/current/pgstatstatements.html)
+- [PostgreSQL partition pruning](https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITION-PRUNING)
+- [PostgreSQL JDBC: getting results based on a cursor](https://jdbc.postgresql.org/documentation/query/#getting-results-based-on-a-cursor)
+- [Spring Data JPA: paging, slices, and scrolling](https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html)
 

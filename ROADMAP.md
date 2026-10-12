@@ -6,9 +6,9 @@ This roadmap tracks the handbook from its current interview-question chapters to
 
 | Area | Status | Current scope | Next improvement |
 |---|---|---|---|
-| Core Java | Complete | 81 questions | Add focused coding exercises and diagrams |
+| Core Java | Complete | 83 questions | Add focused coding exercises and diagrams |
 | Spring and Spring Boot | Complete | 53 questions | Add configuration and debugging exercises |
-| Databases | Complete | 76 questions | Add SQL exercises and execution-plan examples |
+| Databases | Complete | 80 questions | Add SQL exercises and execution-plan examples |
 | Microservices | Complete | 88 questions | Add worked resilience and messaging exercises |
 | System Design | Complete | 96 questions | Add more worked case studies and diagrams |
 | DevOps | Complete | 74 questions | Add worked runbook and IaC exercises |
@@ -16,7 +16,7 @@ This roadmap tracks the handbook from its current interview-question chapters to
 | Behavioral | In progress | 4 questions (testing difficulty, test-coverage gaps, how much testing is enough, AI-assisted debugging) | Add leadership, ownership, conflict, and mentoring stories |
 | Live problem-solving | Complete | 11 questions (method plus 6 worked exercises) | Add more exercises (SQL, Spring debugging, concurrency bugs) |
 | Payments domain | Complete | 83 questions (ecosystem, ISO 8583, Auth–Clear–Settle, EMV/PIN/PCI, switch design, reliability, Kafka, ledger, scenarios) | Add worked ISO 8583 codec exercise, message traces, and sequence diagrams |
-| Revision materials | Planned | Empty scaffold | Populate checklist, quick revision, and cheat sheets |
+| Revision materials | In progress | 1 cheat sheet (final-round technical interview) | Populate checklist, quick revision, and per-chapter cheat sheets |
 
 ## Phase 1 — Backend foundations
 
@@ -177,6 +177,7 @@ Built `10-payments/README.md` for acquiring, payment-switch, and card-processing
 - [ ] Populate `QUICK-REVISION.md` with one-line prompts from every chapter.
 - [ ] Populate `INTERVIEW-CHECKLIST.md` with preparation and interview-day checks.
 - [ ] Define a useful format in `INTERVIEW-LOG.md` for recording real questions and gaps.
+- [x] Add a final-round technical interview cheat sheet (`cheat-sheets/final-technical-interview.md`).
 - [ ] Add one-page cheat sheets for Java, Spring, SQL, microservices, and system design.
 - [ ] Add spaced-repetition prompts or flashcard-ready exports.
 - [ ] Add a two-week and four-week study plan.
