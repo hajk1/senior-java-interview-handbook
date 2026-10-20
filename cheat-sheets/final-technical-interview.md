@@ -1,6 +1,6 @@
 # Final-Round Technical Interview — Cheat Sheet
 
-A short plan for a second, deeper technical interview with a senior engineer: open-ended, scenario-based, covering Java, Spring Boot, databases, concurrency, and system design. The first round asked about a TTL-bound resource lock, slow-query diagnosis, and deep-page pagination; expect the final round to push the same themes one level deeper and ask for real experience.
+A short plan for a second, deeper technical interview with a senior engineer: open-ended, scenario-based, covering Java, Spring Boot, databases, concurrency, and system design. The first round asked about a TTL-bound resource lock, slow-query diagnosis, and deep-page pagination; the final round added a practical code review and a booking-conflict database design (see topics 4 and 5).
 
 > **How to answer:** clarify the scenario → state the direct answer → explain the mechanism → name the trade-off and failure mode → tie it to something you actually did. Say what you would *measure* before what you would *change*.
 
@@ -50,6 +50,33 @@ Tools to name: slow-query log, `pg_stat_statements`, `EXPLAIN (ANALYZE, BUFFERS)
 - Keyset is *still* slow when the index does not match filter plus order, the filter is sparse along the index, or the sort key is not unique.
 - Keyset cannot jump to page N or support arbitrary sorts — then use a deferred join, cap the depth, or use `Slice` instead of `Page`.
 - Do not confuse an **API cursor** (opaque keyset token, stateless) with a **database cursor** (server-side result set that pins a connection and transaction — suited to exports, not user paging).
+
+## Final-round topics: practical code review and database design
+
+These were the final-round questions, and they were where feedback marked gaps. Both reward reading the problem exactly before reaching for a familiar pattern.
+
+### 4. Code review: `if (map.containsKey(key)) map.put(key, value)` on a `ConcurrentHashMap` and on a `HashMap`
+
+Full answer: [Core Java](../01-java-core/README.md) Q83–84.
+
+- **Read the intent first:** that is *replace if present*. `computeIfAbsent` is the wrong fix; `replace(key, value)` (or `computeIfPresent`) is the right one. For `!containsKey`, use `putIfAbsent`/`computeIfAbsent`.
+- **Ask:** is the map shared between threads? If not, the `HashMap` version is fine.
+- **CHM:** each call is safe, the sequence is not. Name the interleaving: A checks → B removes → A puts → the deleted entry comes back.
+- **HashMap, shared:** undefined — no visibility guarantees, lost entries, corrupted buckets (infinite loop on resize in Java 7). Even `containsKey` alone is unsafe against a writer.
+- **Never argue the broken version is faster.** The atomic call is one lookup instead of two.
+- **Extra points:** CHM rejects nulls, `n` is a poor name, fields should be `private final`, and an invariant spanning two structures needs one lock.
+- **Process:** intent → context questions → correctness bugs by severity with a concrete scenario → smallest fix → style and tests → trade-off.
+
+### 5. Venue booking: prevent 12:45–13:45 when 12:30–13:30 is booked
+
+Full answer: [Databases](../03-database/README.md) Q80–81.
+
+- **Key sentence:** "Locking booking rows does not work — the clashing row does not exist yet. That is a phantom / write skew."
+- **Which table:** lock the parent `venue` row with `SELECT ... FOR UPDATE`, re-check overlap (`start < :end AND end > :start`, half-open), insert, commit. JPA: `@Lock(PESSIMISTIC_WRITE)`.
+- **Engine trap:** under PostgreSQL `REPEATABLE READ` the snapshot predates the lock wait; use `READ COMMITTED` or lock via an `UPDATE`.
+- **Innovative answer:** PostgreSQL exclusion constraint — `EXCLUDE USING gist (venue_id WITH =, tstzrange(start_at, end_at, '[)') WITH &&)` with `btree_gist`; catch `23P01`, return 409.
+- **Portable answer:** slot table with `PRIMARY KEY (venue_id, slot_start)` at 15-minute grain; a duplicate key means a clash.
+- **Also name:** `SERIALIZABLE` + retry, advisory lock, optimistic venue version, `PENDING` holds with expiry, idempotency keys, and a queue partitioned by `venue_id` for hot venues. A Redis lock is not a substitute for the database constraint.
 
 ## Likely deeper follow-ups
 

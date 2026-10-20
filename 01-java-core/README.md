@@ -820,7 +820,63 @@ A GC pause, a stalled VM, or a slow network call can outlast any TTL, so two hol
 
 Choose the TTL from the measured p99 work duration plus margin: too short causes false expiry and duplicate work; too long delays recovery after a crash. Often the better answer is to avoid the lock entirely — a unique constraint, optimistic version column, or single-partition consumer enforces the invariant with fewer failure modes.
 
-### 83. What distinguishes a senior Core Java answer?
+### 83. Code review: what is wrong with `containsKey` followed by `put` on a `ConcurrentHashMap`, and on a `HashMap`?
+
+```java
+Map<String, String> n = new ConcurrentHashMap<>();
+if (n.containsKey(key)) {
+    n.put(key, value);
+}
+
+Map<String, String> n = new HashMap<>();
+if (n.containsKey(key)) {
+    n.put(key, value);
+}
+```
+
+First, read what the code *intends*: this is **replace only if present**, not "insert if absent". Pattern-matching it to the familiar `computeIfAbsent` idiom and offering that as the fix is the trap. Next, ask whether the map is shared between threads at all. If it is a local variable or confined to one thread, the `HashMap` version is correct and the `ConcurrentHashMap` adds nothing.
+
+**`ConcurrentHashMap`:** each call is thread-safe, but the *sequence* is a check-then-act race. A concrete interleaving is a **resurrected deletion**:
+
+1. Thread A: `containsKey(key)` returns `true`.
+2. Thread B: `remove(key)` (session revoked, order cancelled).
+3. Thread A: `put(key, value)` re-creates the entry that B just deleted.
+
+The fix is the single atomic method that matches the intent:
+
+| Intent | Atomic `ConcurrentHashMap` call |
+|---|---|
+| Replace if present (this snippet) | `replace(key, value)`, or `computeIfPresent(key, (k, old) -> value)` |
+| Insert if absent | `putIfAbsent(key, value)`, or `computeIfAbsent(key, k -> create())` when creation is expensive |
+| Update derived from the old value | `compute`, `merge`, or a `replace(key, expectedOld, newValue)` CAS loop |
+| Remove only a specific value | `remove(key, expectedValue)` |
+
+**`HashMap`:** if shared, this is not merely racy but undefined. `HashMap` has no happens-before guarantees, so a reader may see stale or partially constructed state; concurrent writes can lose entries or corrupt buckets, and on Java 7 and earlier a concurrent resize could form a cycle that made `get` loop forever. Atomicity of the two calls is the smaller problem — even `containsKey` alone is unsafe against a concurrent writer. Fix it by confining the map to one thread, switching to `ConcurrentHashMap` with an atomic method, or guarding *every* access with the same lock.
+
+Do not argue performance in favour of the broken version: correctness comes first, and `replace` does one hash lookup where check-then-put does two, so the correct code is also cheaper.
+
+Smaller review points that show breadth:
+
+- `ConcurrentHashMap` rejects `null` keys and values with `NullPointerException`; `HashMap` accepts them and `get` returning `null` is ambiguous. Swapping one implementation for the other changes behaviour.
+- A field holding the map should be `private final`, and `n` should be named for what it maps.
+- If the invariant spans *two* structures (a map plus a counter, two maps), no single `ConcurrentHashMap` method makes it atomic — use one lock around the whole invariant or redesign to one structure.
+- The same race exists one level up: `if (repository.existsById(id)) repository.save(entity)` across two transactions, and the fix is the same idea — one atomic conditional operation (a conditional `UPDATE`, a unique constraint, or a version check).
+
+### 84. How do you approach a live code-review question?
+
+Treat it as a review of a colleague's pull request, not a quiz with one hidden bug. Interviewers grade *process* and *prioritisation* as much as the defect you find.
+
+1. **Restate the intent** in one sentence ("this replaces a value only when the key exists"). Many wrong answers come from fixing code the interviewer did not write.
+2. **Ask about context** that changes the verdict: is the object shared between threads, what is the call volume, can inputs be `null`, which Java version, is there a transaction around it?
+3. **Correctness first, ordered by severity:** wrong behaviour, races and visibility, resource leaks (unclosed streams, unbounded collections or pools), error handling (swallowed exceptions, lost interrupts), security (injection, logging secrets).
+4. **Give a concrete failure scenario** for each serious issue — a specific interleaving or input — rather than "this is not thread-safe".
+5. **Propose the smallest correct fix** and say what it costs. Mention a larger redesign only if the smallest fix cannot protect the invariant.
+6. **Then the secondary points:** naming, programming to interfaces, immutability, `final` fields, testability, and the test you would add (for a race, a stress test with a `CountDownLatch` start gate, or a tool such as jcstress, does more than a unit test).
+7. **Close with the trade-off** and how you would verify the fix.
+
+Common traps: optimising a broken version ("this one is faster"), declaring code unsafe without asking whether it is shared, and listing style comments before the correctness bug.
+
+### 85. What distinguishes a senior Core Java answer?
 
 - States contracts precisely instead of relying on folklore.
 - Connects `equals` and immutability to collection correctness.
@@ -876,6 +932,8 @@ Before an interview, answer these without notes:
 35. What is the `Integer` cache, and what boxing traps exist?
 36. How do you build a thread-safe lock that expires after a TTL, and why does expiry not stop the old holder?
 37. Why does a distributed lock need a fencing token?
+38. What is wrong with `containsKey` then `put` on a `ConcurrentHashMap`, and which atomic method matches each intent?
+39. How do you structure an answer to a live code-review question?
 
 ### Thirty-second summary
 
@@ -890,4 +948,6 @@ Java is pass-by-value, dynamically dispatches overridden instance methods, and r
 - [Java language changes](https://docs.oracle.com/en/java/javase/21/language/java-language-changes-release.html)
 - [OpenJDK JEP index](https://openjdk.org/jeps/0)
 - [`FileLock` API (JVM-wide scope and platform dependencies)](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/channels/FileLock.html)
+- [`ConcurrentHashMap` API (atomic `replace`, `putIfAbsent`, `compute*`, `merge`)](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/ConcurrentHashMap.html)
+- [`HashMap` API (not synchronized; external synchronization required)](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html)
 

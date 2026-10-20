@@ -676,7 +676,89 @@ A database cursor (or JDBC streaming with a fetch size) is right for one consume
 
 Cursors can also be slow on later fetches. PostgreSQL plans a cursor to return the *first* rows quickly (`cursor_tuple_fraction`, default 10%), which can favor a plan that is poor when the whole result is consumed. Driver behavior is vendor-specific: the PostgreSQL JDBC driver only uses a server-side cursor when autocommit is off and a fetch size is set, otherwise it buffers the entire result in memory; MySQL Connector/J needs streaming or `useCursorFetch` enabled.
 
-### 80. What distinguishes a senior database answer?
+### 80. How do you prevent two overlapping bookings for the same venue, and which table do you lock?
+
+Lock the **parent `venue` row**, not booking rows. The booking that would clash (12:45–13:45 against an existing 12:30–13:30) does not exist yet. That is a phantom, and two transactions that each check "no overlap" and then insert are a textbook **write skew**: neither sees the other's uncommitted row, and `SELECT ... FOR UPDATE` on existing bookings locks nothing that the competing insert touches.
+
+Use half-open intervals `[start, end)` so back-to-back bookings (12:30–13:30 and 13:30–14:30) do not conflict. Two intervals overlap when:
+
+```sql
+existing.start_at < :new_end AND existing.end_at > :new_start
+```
+
+The portable pattern serialises bookings per venue:
+
+```sql
+BEGIN;
+SELECT id FROM venue WHERE id = :venueId FOR UPDATE;      -- per-venue mutex
+
+SELECT 1 FROM booking
+WHERE venue_id = :venueId
+  AND status <> 'CANCELLED'
+  AND start_at < :end AND end_at > :start
+LIMIT 1;                                                   -- re-check under the lock
+
+INSERT INTO booking (venue_id, start_at, end_at, status)   -- only if nothing found
+VALUES (:venueId, :start, :end, 'CONFIRMED');
+COMMIT;
+```
+
+In Spring Data JPA the lock is a repository method annotated `@Lock(LockModeType.PESSIMISTIC_WRITE)` called inside the same `@Transactional` method as the check and insert. Index `booking (venue_id, start_at)` so the overlap check does not scan the table.
+
+Alternatives and their trade-offs:
+
+| Approach | How it works | Trade-off |
+|---|---|---|
+| Parent row lock (above) | `FOR UPDATE` on `venue` | Simple and portable; serialises all bookings for one venue — fine unless a venue is extremely hot |
+| Advisory lock | `pg_advisory_xact_lock(:venueId)` in PostgreSQL, `GET_LOCK` in MySQL | No dummy row needed; engine-specific; session-scoped variants interact badly with connection pools |
+| Optimistic parent version | `UPDATE venue SET version = version + 1 WHERE id = ? AND version = ?` before inserting | No blocking; the losing transaction retries |
+| `SERIALIZABLE` + retry | PostgreSQL SSI detects the read-write dependency and aborts one transaction with `40001` | No explicit lock; every caller must retry; MySQL instead takes next-key locks and tends to deadlock |
+| Locking booking rows | `FOR UPDATE` on overlapping bookings | **Insufficient** — there is no row to lock when the slot is free |
+
+Engine trap: the re-check must see rows committed by the previous lock holder. Under PostgreSQL's default `READ COMMITTED` each statement takes a fresh snapshot, so it does. Under PostgreSQL `REPEATABLE READ` the snapshot is taken when the first statement starts — *before* the lock wait — so the check can miss the booking just committed. Either use `READ COMMITTED` for this transaction or make the lock an actual `UPDATE` of the venue row, which then raises a serialization failure instead of silently double-booking.
+
+Application-side mutexes (`synchronized`, a Redis lock) do not replace this: they disappear with multiple instances, a crash, or an expired lease, and the database remains the one place every writer passes through.
+
+### 81. How can the schema itself make overlapping bookings impossible?
+
+Move the invariant into a constraint, so correctness does not depend on every code path remembering to lock.
+
+**PostgreSQL exclusion constraint** — a unique constraint generalised to ranges:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS btree_gist;   -- lets GiST handle the scalar venue_id
+
+ALTER TABLE booking ADD CONSTRAINT booking_no_overlap
+  EXCLUDE USING gist (
+    venue_id WITH =,
+    tstzrange(start_at, end_at, '[)') WITH &&
+  )
+  WHERE (status <> 'CANCELLED');
+```
+
+The database rejects any insert or update whose range overlaps (`&&`) an existing active booking for the same venue, atomically and across all application instances. No pre-check query or lock is required; the application catches SQLSTATE `23P01` (`exclusion_violation`) — surfaced by Spring as a `DataIntegrityViolationException` — and returns `409 Conflict`. A concurrent inserter waits for the first transaction to commit or roll back, then succeeds or fails accordingly.
+
+**Slot table plus unique constraint** — portable, including to MySQL, which has no exclusion constraints. If bookings snap to a grain such as 15 minutes, store one row per occupied slot:
+
+```sql
+CREATE TABLE booking_slot (
+  venue_id   BIGINT    NOT NULL,
+  slot_start TIMESTAMP NOT NULL,
+  booking_id BIGINT    NOT NULL REFERENCES booking(id),
+  PRIMARY KEY (venue_id, slot_start)
+);
+```
+
+12:30–13:30 inserts 12:30, 12:45, 13:00, and 13:15; a later 12:45–13:45 collides on 12:45 and the duplicate-key error rolls back the whole booking. Costs: more rows, a fixed grain (arbitrary start times must round outward), and slot rows to delete on cancellation.
+
+Further design points that strengthen the answer:
+
+- **Holds with expiry.** During checkout insert a `PENDING` booking with `expires_at`; the constraint should treat unexpired holds as occupying the slot, and a sweeper (or a predicate on read) releases expired ones. This avoids holding a transaction open while the user pays. A partial constraint predicate cannot reference `now()`, so expired holds must be moved to an inactive status by the sweeper.
+- **Idempotency key** on the booking API so a client retry does not create a second booking or a false conflict.
+- **Single writer per venue at very high contention**: route booking commands through a queue partitioned by `venue_id` (for example a Kafka partition key) so one consumer applies them in order; keep the database constraint as the final guard.
+- **Time zones:** store instants (`timestamptz`), and decide explicitly how daylight-saving transitions affect local opening hours.
+
+### 82. What distinguishes a senior database answer?
 
 - Starts from invariants and access patterns.
 - Treats constraints as correctness tools, not inconveniences.
@@ -731,6 +813,8 @@ Before an interview, answer these without notes:
 34. Why do deep offset pages get slower, and what are the fixes?
 35. When is keyset pagination still slow or unsuitable?
 36. API cursor versus database cursor?
+37. Why can't locking booking rows prevent an overlapping booking, and which row do you lock instead?
+38. How do an exclusion constraint or a slot table make overlaps impossible?
 
 ### Thirty-second summary
 
@@ -749,4 +833,10 @@ A relational database protects declared invariants through constraints and trans
 - [PostgreSQL partition pruning](https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITION-PRUNING)
 - [PostgreSQL JDBC: getting results based on a cursor](https://jdbc.postgresql.org/documentation/query/#getting-results-based-on-a-cursor)
 - [Spring Data JPA: paging, slices, and scrolling](https://docs.spring.io/spring-data/jpa/reference/repositories/query-methods-details.html)
+- [PostgreSQL exclusion constraints](https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-EXCLUSION)
+- [PostgreSQL range types and range constraints](https://www.postgresql.org/docs/current/rangetypes.html)
+- [PostgreSQL `btree_gist`](https://www.postgresql.org/docs/current/btree-gist.html)
+- [PostgreSQL transaction isolation (snapshot timing, serialization failures)](https://www.postgresql.org/docs/current/transaction-iso.html)
+- [PostgreSQL explicit and advisory locking](https://www.postgresql.org/docs/current/explicit-locking.html)
+- [MySQL InnoDB locking (next-key and gap locks)](https://dev.mysql.com/doc/refman/8.4/en/innodb-locking.html)
 
